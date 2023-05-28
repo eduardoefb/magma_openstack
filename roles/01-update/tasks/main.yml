@@ -1,0 +1,57 @@
+---
+# tasks file for 01-update
+  - include_vars: "{{ playbook_dir }}/vars.yml" 
+
+  - name: Update 
+    become: true
+    apt:
+      name: '*'
+      state: 'latest'
+      update_cache: yes
+    register: apt_res
+    retries: 300
+    delay: 10
+    until: apt_res is success   
+
+  - name: Check if reboot required
+    become: true
+    stat:
+      path: /var/run/reboot-required
+    register: reboot_required_file  
+  
+  - name: Notify reboot
+    shell: echo "reboot"  > /tmp/reboot
+    when: reboot_required_file.stat.exists == true    
+    notify: reboot
+
+  - name: Create directory
+    become: true
+    file:
+      path: /usr/local/share/ca-certificates/extra/
+      state: directory
+
+  - name: Transfer the ca certificate
+    become: true
+    copy:
+      src: "{{ playbook_dir }}/certs/regca.crt" 
+      dest: /usr/local/share/ca-certificates/extra/regca.crt      
+
+  
+  - name: Update ca trusted list
+    become: true
+    shell: |
+      /usr/sbin/update-ca-certificates
+    args:
+      executable: /bin/bash
+
+  - name: Install required packages for nfs
+    become: true
+    apt:
+      name: "{{ packages }}"
+      state: latest
+    vars:
+      packages:
+        - nfs-kernel-server 
+        - rsync      
+
+  

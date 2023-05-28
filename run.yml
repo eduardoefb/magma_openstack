@@ -1,0 +1,31 @@
+- hosts: localhost
+  tasks:
+    - include_vars: "{{ playbook_dir }}/vars.yml"
+    - name: Wait for connection
+      wait_for:
+        host: "{{ item }}"
+        port: 22
+        timeout: 3000
+      loop:
+        "{{ all }}"
+
+    - name: Clear files directory
+      file:
+        path: "{{ playbook_dir }}/files"
+        state: absent
+
+    - name: Create files directory
+      file:
+        path: "{{ playbook_dir }}/files"
+        state: directory     
+
+- hosts: BASTIAN
+  user: debian
+  become: false
+  roles:
+    - role: 01-update 
+    - role: 02-image_builder
+    - role: 03-build_orchestrator
+    - role: 04-upload_images
+    - role: 05-deploy 
+

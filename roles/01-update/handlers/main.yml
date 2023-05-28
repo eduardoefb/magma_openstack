@@ -1,0 +1,7 @@
+---
+# handlers file for 01-update
+  - name: reboot
+    become: true
+    reboot:
+      msg: Reboot
+      reboot_timeout: 3600

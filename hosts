@@ -1,0 +1,9 @@
+[BASTIAN]
+10.8.0.46
+
+[ALL]
+10.8.0.46
+
+[all:vars]
+ansible_ssh_private_key_file=ssh_keys/id_rsa
+

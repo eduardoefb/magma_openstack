@@ -1,0 +1,235 @@
+---
+# tasks file for 01-image_builder
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
+- include_vars: "{{ playbook_dir }}/vars.yml" 
+- include_vars: "{{ playbook_dir }}/registry_credentials.yml"  
+
+- name: Remove directory
+  file: 
+    path: /home/debian/magma
+    state: absent
+
+- name: Clone magma repository
+  git:
+    repo: https://github.com/magma/magma.git
+    dest: /home/debian/magma
+    version: "{{ branch }}"
+
+
+- name: Delete .kube directory
+  file:
+    path: /home/debian/.kube
+    state: absent
+
+- name: Create .kube directory
+  file:
+    path: /home/debian/.kube
+    state: directory
+    
+- name: Copy credentials
+  copy:
+    src: "{{ kubeconfig_file }}"
+    dest: /home/debian/.kube/config
+    mode: '0400'
+
+- name: Delete namespace if exists
+  ignore_errors: true
+  shell: kubectl delete namespace {{ namespace }}
+
+- name: Create namespace
+  shell: kubectl create namespace {{ namespace }}
+
+- name: Add bitnami repo
+  shell: helm repo add bitnami https://charts.bitnami.com/bitnami
+
+- name: Install orchestrator db
+  shell: helm -n {{ namespace }} install orc8rdb bitnami/postgresql --set livenessProbe.initialDelaySeconds=300,fullnameOverride=orc8rdb --wait --timeout 3600s
+  
+- name: Install nms db
+  shell: helm -n {{ namespace }} install nmsdb bitnami/postgresql --set livenessProbe.initialDelaySeconds=300,fullnameOverride=nmsdb  --wait --timeout 3600s
+          
+- name: Clear certificate directory
+  file:
+    path: /home/debian/certs
+    state: absent
+
+- name: Create certificate directory
+  file:
+    path: /home/debian/certs
+    state: directory
+    mode: '0700'
+
+- name: Create certificates
+  shell: |
+    cd /home/debian/certs
+    /home/debian/magma/orc8r/cloud/deploy/scripts/self_sign_certs.sh {{ domain }}
+    /home/debian/magma/orc8r/cloud/deploy/scripts/create_application_certs.sh {{ domain }}
+    openssl req -nodes -new -x509 -batch -keyout nms_nginx.key -out nms_nginx.pem -subj "/CN=*.{{ domain }}"
+
+- name: Clear certificate directory
+  file:
+    path: /home/debian/magma/orc8r/cloud/helm/orc8r/charts/secrets/.secrets/certs/
+    state: absent
+
+- name: Create certificate directory
+  file:
+    path: /home/debian/magma/orc8r/cloud/helm/orc8r/charts/secrets/.secrets/certs/
+    state: directory
+
+- name: Create the kubernetes secrets
+  shell: |
+    cd /home/debian/magma/orc8r/cloud/helm/orc8r
+    cp -r /home/debian/certs/* charts/secrets/.secrets/certs/. 
+    helm template orc8r charts/secrets \
+      --namespace {{ namespace }} \
+      --set-string secret.certs.enabled=true \
+      --set-file secret.certs.files."rootCA\.pem"=charts/secrets/.secrets/certs/rootCA.pem \
+      --set-file secret.certs.files."bootstrapper\.key"=charts/secrets/.secrets/certs/bootstrapper.key \
+      --set-file secret.certs.files."controller\.crt"=charts/secrets/.secrets/certs/controller.crt \
+      --set-file secret.certs.files."controller\.key"=charts/secrets/.secrets/certs/controller.key \
+      --set-file secret.certs.files."admin_operator\.pem"=charts/secrets/.secrets/certs/admin_operator.pem \
+      --set-file secret.certs.files."admin_operator\.key\.pem"=charts/secrets/.secrets/certs/admin_operator.key.pem \
+      --set-file secret.certs.files."certifier\.pem"=charts/secrets/.secrets/certs/certifier.pem \
+      --set-file secret.certs.files."certifier\.key"=charts/secrets/.secrets/certs/certifier.key \
+      --set-file secret.certs.files."nms_nginx\.pem"=charts/secrets/.secrets/certs/nms_nginx.pem \
+      --set-file secret.certs.files."nms_nginx\.key\.pem"=charts/secrets/.secrets/certs/nms_nginx.key \
+      --set=docker.registry={{ registry.url }} \
+      --set=docker.username="{{ registry.username }}" \
+      --set=docker.password="{{ registry.password }}" |
+      kubectl apply -f -    
+
+- name: Delete fluentd certificate directory
+  file: 
+    path: /home/debian/fluentd
+    state: absent   
+
+- name: Create fluentd certificate directory
+  file: 
+    path: /home/debian/fluentd
+    state: directory
+
+- name: Create certificates for fluentd
+  shell: |
+    cd /home/debian
+    cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 > .rnd
+    openssl genrsa -out fluentd/fluentd.key 2048
+    openssl req -x509 -new -nodes -key fluentd/fluentd.key -sha256 -days 3650 -out fluentd/fluentd.pem -subj "/C=BR/CN=fluentd.{{ domain }}"    
+    kubectl -n {{ namespace }} create secret generic fluentd-certs --from-file=fluentd/
+  args:
+    executable: /bin/bash   
+
+- name: Get psql vars for orc8r 
+  shell: | 
+    kubectl get secret --namespace {{ namespace }} orc8rdb -o jsonpath="{.data.postgres-password}" | base64 --decode
+  register:
+    orc8r_psql_pw
+
+- name: Get psql vars for nms 
+  shell: |       
+    kubectl get secret --namespace {{ namespace }} nmsdb -o jsonpath="{.data.postgres-password}" | base64 --decode
+  register:
+     nms_psql_pw      
+
+- name: Clear helm directory
+  file:
+    dest: /tmp/helm 
+    state: absent
+
+- name: Define values for orc8r
+  template:
+    src: values.yml.j2 
+    dest: /home/debian/values.yaml
+  vars:
+    orc8r_psql_pass: "{{ orc8r_psql_pw.stdout }}"
+    nms_psql_pass: "{{ nms_psql_pw.stdout }}"  
+
+- name: Define values for nms
+  template:
+    src: values_nms.yml.j2 
+    dest: /home/debian/magma/orc8r/cloud/helm/orc8r/charts/nms/values.yaml
+  vars:
+    orc8r_psql_pass: "{{ orc8r_psql_pw.stdout }}"
+    nms_psql_pass: "{{ nms_psql_pw.stdout }}"      
+
+- name: Define values for orc8r-lte
+  template:
+    src: values_lte.yml.j2 
+    dest: /home/debian/values_lte.yaml       
+  vars:
+    orc8r_psql_pass: "{{ orc8r_psql_pw.stdout }}"
+    nms_psql_pass: "{{ nms_psql_pw.stdout }}"  
+
+- name: Create prometheus pvcs
+  shell: |
+    storageclass=`kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
+    cat << EOF | kubectl -n {{ namespace }} create -f -
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: {{ item }}
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: ${storageclass}
+    EOF
+  loop:
+    - prometheus-data
+    - prometheus-config
+
+
+
+- name: Deploy orc8r
+  shell: | 
+    cd /home/debian/magma/orc8r/cloud/helm/orc8r
+    for f in `grep -lr -i 'policy/v1beta1'  *`; do sed -i 's|policy/v1beta1|policy/v1|g' $f; done
+    helm dep update
+    helm install orc8r --namespace {{ namespace }} . --values=/home/debian/values.yaml --wait --timeout 3600s
+  args:
+    executable: /bin/bash  
+
+- name: Deploy orc8r-lte
+  shell: | 
+    cd /home/debian/magma/lte/cloud/helm/lte-orc8r
+    for f in `grep -lr -i 'policy/v1beta1'  *`; do sed -i 's|policy/v1beta1|policy/v1|g' $f; done
+    helm dep update
+    helm install orc8r-lte --namespace {{ namespace }} . --values=/home/debian/values_lte.yaml  --wait --timeout 3600s
+  args:
+    executable: /bin/bash   
+
+- name: Renerate new key for magmalte
+  shell: |
+    cd /home/debian/magma/orc8r/cloud/helm/orc8r
+    cert_pod=`kubectl -n {{ namespace }} get pod -l app.kubernetes.io/component=certifier -o jsonpath='{.items[0].metadata.name}'`
+    kubectl -n {{ namespace }} exec -it ${cert_pod} -- envdir /var/opt/magma/envdir /var/opt/magma/bin/accessc add-admin -duration 3650 -cert admin_operator admin_operator
+    kubectl -n {{ namespace }} cp ${cert_pod}:/admin_operator.key.pem charts/secrets/.secrets/certs/admin_operator.key.pem
+    kubectl -n {{ namespace }} cp ${cert_pod}:/admin_operator.pem charts/secrets/.secrets/certs/admin_operator.pem
+    
+
+- name: Create the kubernetes secrets
+  shell: |
+    cd /home/debian/magma/orc8r/cloud/helm/orc8r
+    helm template orc8r charts/secrets \
+      --namespace {{ namespace }} \
+      --set-string secret.certs.enabled=true \
+      --set-file secret.certs.files."rootCA\.pem"=charts/secrets/.secrets/certs/rootCA.pem \
+      --set-file secret.certs.files."bootstrapper\.key"=charts/secrets/.secrets/certs/bootstrapper.key \
+      --set-file secret.certs.files."controller\.crt"=charts/secrets/.secrets/certs/controller.crt \
+      --set-file secret.certs.files."controller\.key"=charts/secrets/.secrets/certs/controller.key \
+      --set-file secret.certs.files."admin_operator\.pem"=charts/secrets/.secrets/certs/admin_operator.pem \
+      --set-file secret.certs.files."admin_operator\.key\.pem"=charts/secrets/.secrets/certs/admin_operator.key.pem \
+      --set-file secret.certs.files."certifier\.pem"=charts/secrets/.secrets/certs/certifier.pem \
+      --set-file secret.certs.files."certifier\.key"=charts/secrets/.secrets/certs/certifier.key \
+      --set-file secret.certs.files."nms_nginx\.pem"=charts/secrets/.secrets/certs/nms_nginx.pem \
+      --set-file secret.certs.files."nms_nginx\.key\.pem"=charts/secrets/.secrets/certs/nms_nginx.key \
+      --set=docker.registry={{ registry.url }} \
+      --set=docker.username="{{ registry.username }}" \
+      --set=docker.password="{{ registry.password }}" |
+      kubectl apply -f -   
+   
+- name: Restart magma lte pods
+  shell: |
+    kubectl -n {{ namespace }} rollout restart deployment nms-magmalte
+

@@ -1,0 +1,30 @@
+---
+# tasks file for 01-image_builder
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
+- include_vars: "{{ playbook_dir }}/vars.yml" 
+- include_vars: "{{ playbook_dir }}/registry_credentials.yml"  
+
+- name: Login to the registry
+  shell: |
+    docker login -u {{ registry.username }} -p {{ registry.password }} {{ registry.url }}
+
+- name: Tag images
+  shell: |
+    docker tag {{ item }}:latest {{ registry.url }}/{{ registry.project }}/{{ item }}:1.8.0
+  loop:
+    - magmalte-magmalte
+    - orc8r-nginx
+    - orc8r-test
+    - orc8r-fluentd
+    - orc8r-controller
+
+- name: Push images
+  shell: |
+    docker push {{ registry.url }}/{{ registry.project }}/{{ item }}:1.8.0
+  loop:
+    - magmalte-magmalte
+    - orc8r-nginx
+    - orc8r-test
+    - orc8r-fluentd
+    - orc8r-controller
+

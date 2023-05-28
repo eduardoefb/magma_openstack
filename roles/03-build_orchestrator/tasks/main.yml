@@ -1,0 +1,45 @@
+---
+# tasks file for 01-image_builder
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
+- include_vars: "{{ playbook_dir }}/vars.yml" 
+- include_vars: "{{ playbook_dir }}/registry_credentials.yml"  
+
+- name: Remove directory
+  file: 
+    path: /home/debian/magma
+    state: absent
+
+- name: Clone magma repository
+  git:
+    repo: https://github.com/magma/magma.git
+    dest: /home/debian/magma
+    version: "{{ branch }}"
+
+- name: reboot
+  become: true
+  reboot:
+    msg: Reboot
+    reboot_timeout: 3600    
+
+- name: Change DNS
+  become: true
+  shell: |
+    cp /etc/resolv.conf /tmp/resolv.conf.bak
+    echo "nameserver 1.1.1.1" > /etc/resolv.conf
+    echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+    echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+
+- name: Build orchestrator
+  shell: |
+    cd /home/debian/magma/orc8r/cloud/docker
+    /home/debian/.pyenv/versions/3.7.3/bin/python3 build.py --all > /tmp/orc8r_build.log 2>/tmp/err.log
+
+- name: Build nms
+  shell: |
+    cd /home/debian/magma/nms 
+    COMPOSE_PROJECT_NAME=magmalte docker-compose build magmalte > /tmp/nms_build.log
+
+- name: Rollback dns
+  become: true
+  shell: |
+    cp /tmp/resolv.conf.bak /etc/resolv.conf

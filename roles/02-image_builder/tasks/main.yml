@@ -1,0 +1,129 @@
+---
+# tasks file for 01-image_builder
+- name: Disable IPV6  
+  become: true
+  shell:     
+     echo "net.bridge.bridge-nf-call-ip6tables = 1 \nnet.bridge.bridge-nf-call-iptables = 1" > /etc/sysctl.d/k8s.conf &&  sysctl --system
+
+- name: Install packages 
+  become: true
+  apt:  
+     pkg: [ 'curl', 'wget', 'openstack-clients', 'make', 'build-essential', 'libssl-dev', 'zlib1g-dev', 'libbz2-dev', 'libreadline-dev', 'libsqlite3-dev', 'llvm', 'libncurses5-dev', 'libncursesw5-dev', 'xz-utils', 'tk-dev', 'libffi-dev', 'liblzma-dev', 'git', 'python3', 'python3-pip' ]
+
+
+- name: Remove pyenv directory
+  file:
+    path: /home/debian/.pyenv
+    state: absent
+
+- name: Clone pyenv  
+  git:
+    repo: https://github.com/pyenv/pyenv.git
+    dest: /home/debian/.pyenv
+
+- name: Bashrc
+  copy:
+    src: bashrc
+    dest: /home/debian/.bashrc
+    mode: "644"
+
+- name: Install pyenv
+  shell: |
+    /home/debian/.pyenv/bin/pyenv install 3.7.3 > /tmp/pyenv.log 2>&1
+  args:
+    executable: /bin/bash
+
+- name: Global pyenv
+  shell: |
+    /home/debian/.pyenv/bin/pyenv global 3.7.3 >> /tmp/pyenv.log 2>&1
+  args:
+    executable: /bin/bash
+
+
+- name: Install required Python packages
+  pip:
+    name:
+      - ansible
+      - fabric3
+      - jsonpickle
+      - requests
+      - PyYAML
+      - boto3
+    executable: pip3
+    state: present
+
+- name: Install kubectl 
+  become: true
+  shell: |
+      if [ ! -f "/usr/local/bin/kubectl" ]; then
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        mv kubectl /usr/local/bin/
+        chmod +x /usr/local/bin/kubectl
+      fi
+  register: apt_res
+  retries: 300
+  delay: 10
+  until: apt_res is success   
+
+- name: Download helm
+  become: true
+  unarchive:
+    src: https://get.helm.sh/helm-v3.2.1-linux-amd64.tar.gz 
+    dest: /tmp/
+    remote_src: yes  
+
+- name: Move helm binary to /usr/local/bin/
+  become: true
+  copy:
+    src: /tmp/linux-amd64/helm
+    dest: /usr/local/bin/helm
+    mode: 'a+x'
+    remote_src: yes
+
+
+- name: Install docker, install dependences
+  become: true
+  apt:  
+     pkg: ['apt-transport-https', 'ca-certificates', 'curl', 'gnupg-agent', 'software-properties-common', 'nfs-kernel-server', 'portmap']
+
+- name: Install docker, get repository
+  become: true
+  shell: |
+    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+    apt-key fingerprint 0EBFCD88
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+    apt update
+  args:
+    executable: /bin/bash
+  
+- name: Install docker, install 
+  become: true 
+  apt:
+     pkg: ['docker-ce', 'docker-ce-cli', 'containerd.io', 'apt-transport-https', 'gnupg2']
+     
+- name: Enable docker
+  become: true
+  systemd:     
+     enabled: yes
+     name: docker
+
+- name: Restart docker  
+  become: true
+  systemd:     
+     state: restarted
+     daemon_reload: yes
+     name: docker  
+
+- name: Add user to docker group
+  become: true
+  user:
+    name: debian
+    groups: docker
+    append: yes       
+
+- name: Download docker-compose binary
+  become: true
+  get_url:
+    url: https://github.com/docker/compose/releases/download/v2.18.1/docker-compose-linux-x86_64
+    dest: /usr/local/bin/docker-compose
+    mode: 'a+x'
