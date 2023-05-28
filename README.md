@@ -25,8 +25,11 @@ Once operator is created, (ex:  custom), enter on it's url
 ```shell
 https://custom.nms.lte.int/
 ```
+Example:
+```log
 admin@custom.lte.int
 XTpOtJS5FrKg
+```
 
 Create an operator and an admin user for it and open the url
 https://custom.nms.
