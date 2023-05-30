@@ -7,6 +7,7 @@ terraform destroy \
     -var "bootstrapper=${bootstrapper}" \
     -var "api=${api}" \
     -var "controller=${controller}" \
+    -var "fluentd=${fluentd}" \
     -var "nms=${nms}" --auto-approve    
 cd ${cwd}
 

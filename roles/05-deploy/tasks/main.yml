@@ -179,8 +179,6 @@
     - prometheus-data
     - prometheus-config
 
-
-
 - name: Deploy orc8r
   shell: | 
     cd /home/debian/magma/orc8r/cloud/helm/orc8r
@@ -233,3 +231,17 @@
   shell: |
     kubectl -n {{ namespace }} rollout restart deployment nms-magmalte
 
+- name: Clear fluentd files
+  file:
+    path: /home/debian/logging-chart
+    state: absent 
+
+- name: Copy fluentd files
+  copy:
+    src: logging-chart
+    dest: /home/debian/
+
+- name: Deploy fluentd
+  shell: |
+    cd /home/debian/logging-chart
+    helm install logging .  --wait --timeout 3600s

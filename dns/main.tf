@@ -76,6 +76,16 @@ resource "openstack_dns_recordset_v2" "nms_custom" {
 
 }
 
+resource "openstack_dns_recordset_v2" "fluentd" {
+  zone_id     = data.openstack_dns_zone_v2.zone.id
+  name        = "fluentd.${var.zone}."
+  description = "fluentd"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.fluentd}" ]
+
+}
+
 #################Variables##########################################
 
 variable "zone" {
@@ -96,4 +106,8 @@ variable "controller"{
 
 variable "nms"{
   description = "The controller recordset ip"
+}
+
+variable "fluentd"{
+  description = "The fluentd recordset ip"
 }

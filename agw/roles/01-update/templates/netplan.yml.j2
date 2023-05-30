@@ -1,0 +1,15 @@
+network:
+    version: 2
+    ethernets:
+        eth0:
+            addresses: [{{ if1_addr.stdout }}/{{ if1_mask.stdout }}]
+            gateway4: {{ gw }}
+            nameservers:
+                addresses: [1.1.1.1, 8.8.8.8, 8.8.4.4]
+            dhcp4: no
+            mtu: 1450
+        eth1:
+            addresses: [{{ if2_addr.stdout }}/{{ if2_mask.stdout }}]
+            routes: []
+            dhcp4: no
+            mtu: 1450

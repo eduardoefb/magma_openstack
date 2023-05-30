@@ -103,6 +103,7 @@ bootstrapper=`kubectl -n ${namespace} get service bootstrapper-orc8r-nginx -o=js
 api=`kubectl -n ${namespace} get service orc8r-nginx-proxy -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 controller=`kubectl -n ${namespace} get service orc8r-clientcert-nginx -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 nms=`kubectl -n ${namespace} get service nginx-proxy -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
+fluentd=`kubectl -n ${namespace} get service fluentd -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 
 
 cat << EOF > dns-rc
@@ -111,6 +112,7 @@ domain=${domain}
 bootstrapper=${bootstrapper}
 api=${api}
 controller=${controller}
+fluentd=${fluentd}
 nms=${nms}
 EOF
 
@@ -121,6 +123,7 @@ terraform destroy \
   -var "bootstrapper=${bootstrapper}" \
   -var "api=${api}" \
   -var "controller=${controller}" \
+  -var "fluentd=${fluentd}" \
   -var "nms=${nms}" --auto-approve
 
 terraform apply \
@@ -128,6 +131,7 @@ terraform apply \
   -var "bootstrapper=${bootstrapper}" \
   -var "api=${api}" \
   -var "controller=${controller}" \
+  -var "fluentd=${fluentd}" \
   -var "nms=${nms}" --auto-approve
 
 
