@@ -1,0 +1,15 @@
+---
+# tasks file for 01-update 
+  - name: Wait for installation
+    become: true
+    wait_for:
+      path: /tmp/installation_finished
+      timeout: 7200
+
+  - name: Reboot
+    become: true
+    reboot:
+      msg: Reboot triggered
+      reboot_timeout: 3600
+
+      

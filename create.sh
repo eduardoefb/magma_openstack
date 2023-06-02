@@ -7,20 +7,36 @@ function update_inventory(){
     unset bastian_ext    
 
     bastian_id=`cat bastian.txt | head -1 | awk '{print $1}'`
-    addr_line=`openstack server show ${bastian_id} -f value -c addresses`
-    bastian_int=$(awk -F \' '{print $4}' <<< ${addr_line})
-    bastian_ext=$(awk -F \' '{print $6}' <<< ${addr_line})
+    agw_id=`cat agw.txt | head -1 | awk '{print $1}'`
+    addr_line_bastian=`openstack server show ${bastian_id} -f value -c addresses`
+    addr_line_agw=`openstack server show ${agw_id} -f value -c addresses`
+    bastian_int=$(awk -F \' '{print $4}' <<< ${addr_line_bastian})
+    bastian_ext=$(awk -F \' '{print $6}' <<< ${addr_line_bastian})
+    agw_int=$(awk -F \' '{print $4}' <<< ${addr_line_agw})
+    agw_ext=$(awk -F \' '{print $6}' <<< ${addr_line_agw})
+
 
     echo "[BASTIAN]" >> hosts    
     echo "${bastian_ext}" >> hosts
+    echo >> hosts
+    echo "[AGW]" >> hosts    
+    echo "${agw_ext}" >> hosts
 
     echo >> vars.yml
     echo >> hosts
     echo "[ALL]" >> hosts 
-    echo "all:" >> vars.yml
     echo ${bastian_ext} >> hosts
-    
+    echo ${agw_ext} >> hosts
+    echo "all:" >> vars.yml    
     echo "  - ${bastian_ext}" >> vars.yml
+    echo "  - ${agw_ext}" >> vars.yml
+    echo >> vars.yml
+    echo "bastian:" >> vars.yml    
+    echo "  - ${bastian_ext}" >> vars.yml
+    echo >> vars.yml    
+    echo "agw:" >> vars.yml    
+    echo "  - ${agw_ext}" >> vars.yml
+
 
     echo >> vars.yml
     echo "int_net: `cat int_network.txt`" >> vars.yml
@@ -29,6 +45,7 @@ function update_inventory(){
     echo >> hosts
     echo "[all:vars]" >> hosts 
     echo "ansible_ssh_private_key_file=ssh_keys/id_rsa" >> hosts
+  
     echo >> hosts  
     echo >> vars.yml
     echo "dns_nameservers:" >> vars.yml
@@ -53,11 +70,11 @@ function update_inventory(){
     
     echo >> vars.yml
     echo "internal_subnet_id: `cat internal_subnet_id.txt`" >> vars.yml
-    echo "floating_network_id: `cat floating_network_id.txt`" >> vars.yml
+    #echo "floating_network_id: `cat floating_network_id.txt`" >> vars.yml
 }
 
-export DOMAIN="k8so.int"
-export LB_PREFIX="k8so-lb"
+
+export REGISTRY_CA_CERT="${HOME}/k8s/certs/regca.crt"
 
 # Ask for the ansible-vault password
 read -s -p "Enter ansible-vault password: " ansible_password
@@ -76,12 +93,17 @@ if [ "${1}" == "-d" ]; then
     cd dns
     source dns-rc
     terraform destroy \
-    -var "zone=${domain}" \
-    -var "bootstrapper=${bootstrapper}" \
-    -var "api=${api}" \
-    -var "controller=${controller}" \
-    -var "nms=${nms}" --auto-approve    
-    cd `cwd`
+        -var "zone=${domain}" \
+        -var "bootstrapper=${bootstrapper}" \
+        -var "api=${api}" \
+        -var "controller=${controller}" \
+        -var "fluentd=${fluentd}" \
+        -var "nms=${nms}" --auto-approve    
+    cd ${cwd}
+
+    namespace=`grep -oP '(?<=^namespace:\s).*' magma_config.yml`
+    kubectl delete namespace ${namespace}
+
     terraform destroy --auto-approve
 fi
 
@@ -90,6 +112,14 @@ for f in *.txt; do echo >> $f; done
 sed -i '/^$/d' *.txt
 
 update_inventory
+
+# Copy ca authority from registry:
+rm -rf certs 2>/dev/null
+mkdir certs
+if ! cat "${REGISTRY_CA_CERT}" > certs/regca.crt; then 
+    echo "Error: Failed to copy ${REGISTRY_CA_CERT}! Please verify the file path."
+    exit 1
+fi
 
 if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts run.yml --vault-password-file <(echo "$ansible_password"); then
     exit 1

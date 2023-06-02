@@ -1,14 +1,15 @@
 #### Deploy magma on kubespray 
-Copy the kubespray certificates to the current directory
+Copy the kubespray certificate authority to the current directory
 
 ```
 rm -rf certs
-cp -rfv ~/k8s/certs .
+mkdir certs
+cat ~/k8s/certs/regca.crt > certs/regca.crt
 ```
 
 Deploy:
 ```shell
-bash create.sh -d
+bash create.sh
 ```
 
 Once the orc8r and nms are deployed, create the admin user and password:
@@ -34,36 +35,38 @@ XTpOtJS5FrKg
 Create an operator and an admin user for it and open the url
 https://custom.nms.
 
-#### Deploy agw:
 
-Create agw instance
+To access the api:
+https://api.lte.int/swagger/v1/ui/
+
+
+
+API Examples:
+List networks:
 ```shell
-cd agw
-terraform apply \
-  -var "oam_network=lb" \
-  -var "oam_subnet=lb" \
-  -var "s1_network=clabext01" \
-  -var "s1_subnet=clabext01_ipv4" \
-  -var "key_pair_file=/home/eduardoefb/.ssh/id_rsa.pub" \
-  --auto-approve
+curl \
+  --cacert certs/rootCA.pem \
+  --cert certs/admin_operator.pem \
+  --key certs/admin_operator.key.pem \
+  -X 'GET' \
+  'https://api.lte.int/magma/v1/lte' \
+  -H 'accept: application/json'
+```
 
+
+
+
+And delete the ubuntu instance:
+```shell
 terraform destroy \
   -var "oam_network=lb" \
   -var "oam_subnet=lb" \
   -var "s1_network=clabext01" \
   -var "s1_subnet=clabext01_ipv4" \
   -var "key_pair_file=/home/eduardoefb/.ssh/id_rsa.pub" \
+  -var "image=ubuntu_20.04" \
   --auto-approve
 ```
-
-Start installation:
-```shell
-ssh <agw_ip>
-sudo su - 
-wget https://raw.githubusercontent.com/magma/magma/v1.8/lte/gateway/deploy/agw_install_ubuntu.sh
-bash agw_install_ubuntu.sh 
-# After reboot:
-journalctl -fu agw_installation.service
 
 mkdir -p /var/opt/magma/configs
 cat << EOF > /var/opt/magma/configs/control_proxy.yml
@@ -78,34 +81,35 @@ EOF
 
 
 cat << EOF >> /etc/hosts
-10.8.0.133 controller.lte.int
-10.8.0.30 bootstrapper-controller.lte.int
-10.8.0.250 fluentd.lte.int
+10.8.0.49 controller.lte.int
+10.8.0.34 bootstrapper-controller.lte.int
+10.8.0.42 fluentd.lte.int
 EOF
 
 mkdir -p /var/opt/magma/tmp/certs/            
-cat << EOF > /var/opt/magma/tmp/certs/rootCA.pem
+cat << EOF > /var/opt/magma/tmp/certs/rootCA.pem          
 -----BEGIN CERTIFICATE-----
-MIIDLTCCAhWgAwIBAgIULdP7ClgUGZjSR/76AgYmNMVQ0CswDQYJKoZIhvcNAQEL
+MIIDLTCCAhWgAwIBAgIUeWjNwa4P2XIVZ9iWpPOFlbDnl8wwDQYJKoZIhvcNAQEL
 BQAwJjELMAkGA1UEBhMCVVMxFzAVBgNVBAMMDnJvb3RjYS5sdGUuaW50MB4XDTIz
-MDUzMDAwMDg0NFoXDTMzMDUyNzAwMDg0NFowJjELMAkGA1UEBhMCVVMxFzAVBgNV
+MDUzMDE0MTIzOFoXDTMzMDUyNzE0MTIzOFowJjELMAkGA1UEBhMCVVMxFzAVBgNV
 BAMMDnJvb3RjYS5sdGUuaW50MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
-AQEA1zU5Rf/Cz9bqXDWDAwF3dJD3rWxII/Xj3pJQS8o8KWJ+of+8jJIZPxsCcSoQ
-tn0NuTMSKsF0WAmThsq6oniD3kiXHr9fZBg3qCkdT53ehRQge2hX/t5e8V1q6V+n
-6DNCpWYajUaPvQoShGzqqg2Nud6T+/weYAxWfcG5O/WAK9qJCEsU++JCLUHWLzR0
-z1D88jZ237vwrOsklt3/6rcvwjYsgbXITBnODccsu8aAvONuOR3Q2SnzllnwHtKX
-Km5OpQZDCM+PlqqXw1x6KooI5PWg8JPMBeDChzW7b/P2bgsq3ffL+H9GnfKJN26P
-b9QAw/4vvggayu7RLpA+iZexNwIDAQABo1MwUTAdBgNVHQ4EFgQUa8wQsvT+wvvX
-KdnUV7kRk/QAqV8wHwYDVR0jBBgwFoAUa8wQsvT+wvvXKdnUV7kRk/QAqV8wDwYD
-VR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAxbnwwWiVjZEyec/dmEKE
-tXUQ/yVn/0Y0F6YsQnl8EdmdwdN4GkNZhmnSAIazNPTNoRLqDg+Yhrmsc+sOR0IB
-MyhSHZDxRBc/jm8wOzJHqlAcKHnDn3EDrTxNmFtDVXhf3d9mEt1hnbFFw7RJZMwV
-+SAPNUFENNIuPseHOarhVV19v279WGjq98DzMJymlHpCxh+bFGcY3NgJh7JPozQf
-Vn7A8pOuvphR+OdKzNEgO/Q+GXiOMtw+g6B/ohSjhwp4rreLQ1yKsyCzGMOX5CCv
-bL1bsfE+3iXpWnNq7RkWd0OwcmqXgVipwyER9kNdVAjXz/vLMJylYOW9wWeC+ypb
-qQ==
+AQEA9Qmh2oIxyUEdvPvZ1o+XQ8EqSYctN5i9X35Ii573A673Kqlb3aWeoyatyJns
+XIDQNkI6Y02R/xF7XTD7sLnyB+v51JGH9CuqI47Emodkweo/ykyAgloLDH8iQDKC
+dS6Jv7aWpQcmTsrtdH0Pd305uQQ9tem9Zg3LtK39qYw79ViYulnZ1UrKvDdZug5W
+zOHLRkLeSqMXtB3abJkk27z47dDpXZ66smgwBUNAd3M7uWDM0UTpaLhyDRi5AlCM
+WyfaUHlY+zuXnfGDQ0kpdtdYHzDHuBlVnM6a3GopE81Twng8dwgrwPI2IuXqUtrW
+hfobjdPo5h90xKjDEk0SqzfkzwIDAQABo1MwUTAdBgNVHQ4EFgQUeNuhAr2r80N3
+PVvCb4XBImZdZAIwHwYDVR0jBBgwFoAUeNuhAr2r80N3PVvCb4XBImZdZAIwDwYD
+VR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAoCAPpIZQpUecOdiRXe/h
+ivAvRz9JSYWpX+Khr453nJ8fMIUNuKzM8w1Wx1q3+y/9g+3jdmIgDwJUrBrSMygL
+4PqEwvRWPHJ2AzYckQnzcUsp8/WW9F/+9ecEgDwsgVydLa88CUp9jKDqafTbAIoK
+owGWx/8vEiOGrH8mfFhuCdgdwUXahYPzQHi/iO+n3SSIpnaB+hEu2IPrUEQTDJhR
+WgPPbMVXz3XcHgmUxbEMKR++Ya1NI/EzhC5y1PP157htbhWaJPW3m3A/nPYcdrQR
+pOxJhVfeNwKlJplPLOdnOgv6pcAykJVcXiGg/l2/YhvESiL/zr+tTU9L7+RoVF3y
+bg==
 -----END CERTIFICATE-----
 EOF
+
 
 
 show_gateway_info.py

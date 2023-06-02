@@ -1,0 +1,49 @@
+---
+# tasks file for 01-image_builder
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
+- include_vars: "{{ playbook_dir }}/vars.yml" 
+- include_vars: "{{ playbook_dir }}/registry_credentials.yml"  
+
+- name: Delete temporary directory
+  file:
+    path: /tmp/certs
+    state: absent
+
+- name: Create temporary directory
+  file:
+    path: /tmp/certs
+    state: directory
+
+- name: Get certs from pod
+  shell: |
+    certifier_pod=`kubectl -n {{ namespace }} get pod -l app.kubernetes.io/component=certifier -o jsonpath='{.items[0].metadata.name}'`
+    kubectl -n {{ namespace }} cp ${certifier_pod}:/var/opt/magma/certs/..data/{{ item }} /tmp/certs/{{ item }}
+  loop:
+    - admin_operator.key.pem
+    - admin_operator.pem
+    - rootCA.pem
+
+- name: Generate the pfx file
+  shell: |
+    cd /tmp/certs
+    pass=`openssl rand -hex 20`
+    echo -n ${pass} | base64 > admin_operator.pfx.pass
+    openssl pkcs12 -export -inkey admin_operator.key.pem -in admin_operator.pem -out admin_operator.pfx -passout pass:${pass}
+  
+- name: Fetch certificates
+  fetch:
+    src: "/tmp/certs/{{ item }}"
+    dest: "{{ playbook_dir }}/certs/{{ item }}"
+    flat: yes
+  loop:
+    - admin_operator.key.pem
+    - admin_operator.pem
+    - rootCA.pem
+    - admin_operator.pfx
+    - admin_operator.pfx.pass
+  
+- name: Delete temporary directory
+  file:
+    path: /tmp/certs
+    state: absent  
+    

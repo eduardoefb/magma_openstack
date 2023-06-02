@@ -1,0 +1,54 @@
+---
+# tasks file for 01-update 
+  - name: Copy script
+    become: true
+    copy:
+      src: agw_install_ubuntu.sh
+      dest: /root/agw_install_ubuntu.sh
+
+  - name: Update APT cache
+    become: true
+    apt:
+      update_cache: yes
+
+  - name: Install required packages
+    become: true
+    apt:
+      pkg:
+        - ifupdown
+        - net-tools
+        - ipcalc
+        - curl
+        - make
+        - virtualenv 
+        - zip 
+        - rsync 
+        - git 
+        - software-properties-common 
+        - python3-pip 
+        - python-dev 
+        - apt-transport-https
+      update_cache: yes
+    retries: 300
+    delay: 10
+
+  - name: Install agw
+    become: true 
+    shell: |
+      cd /root
+      bash agw_install_ubuntu.sh
+
+  - name: Remove the file
+    become: true
+    file:
+      path: /tmp/installation_finished
+      state: absent
+
+  - name: Reboot
+    become: true
+    reboot:
+      msg: Reboot triggered
+      reboot_timeout: 3600
+
+
+      

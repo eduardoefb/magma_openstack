@@ -1,7 +1,0 @@
-
-- hosts: AGW
-  user: ubuntu
-  become: false
-  roles:
-    - role: 01-update
-

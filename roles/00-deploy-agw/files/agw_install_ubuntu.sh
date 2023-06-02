@@ -46,12 +46,7 @@ if [ "$SKIP_PRECHECK" != "$SUCCESS_MESSAGE" ]; then
   if [[ -f ./agw_pre_check_ubuntu.sh ]]; then
     bash agw_pre_check_ubuntu.sh
     while true; do
-        read -p "Do you accept those modifications and want to proceed with magma installation?(y/n)" yn
-        case $yn in
-            [Yy]* ) break;;
-            [Nn]* ) exit;;
-            * ) echo "Please answer yes or no.";;
-        esac
+        break
     done
   else
     echo "agw_pre_check_ubuntu.sh is not available in your version"
@@ -71,7 +66,7 @@ if [[ $1 != "$CLOUD_INSTALL" ]] && ( [[ ! $INTERFACES == *'eth0'*  ]] || [[ ! $I
 
   # name server config
   ln -sf /var/run/systemd/resolve/resolv.conf /etc/resolv.conf
-  sed -i 's/#DNS=/DNS=8.8.8.8 208.67.222.222/' /etc/systemd/resolved.conf
+  # sed -i 's/#DNS=/DNS=8.8.8.8 208.67.222.222/' /etc/systemd/resolved.conf
   service systemd-resolved restart
 
   # interface config
@@ -175,7 +170,7 @@ WantedBy=multi-user.target
 EOF
   chmod 644 $AGW_INSTALL_CONFIG
   ln -sf $AGW_INSTALL_CONFIG $AGW_INSTALL_CONFIG_LINK
-  reboot
+  exit 0
 fi
 
 echo "Checking if magma has been installed"
@@ -206,8 +201,8 @@ if [ "$MAGMA_INSTALLED" != "$SUCCESS_MESSAGE" ]; then
 
   echo "AGW installation is done, Run agw_post_install_ubuntu.sh install script after reboot to finish installation"
   wget https://raw.githubusercontent.com/magma/magma/"$MAGMA_VERSION"/lte/gateway/deploy/agw_post_install_ubuntu.sh -P /root/
-
-  reboot
+  touch /tmp/installation_finished
+  exit 0
 else
   echo "Magma already installed, skipping.."
 fi

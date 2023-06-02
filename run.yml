@@ -19,6 +19,13 @@
         path: "{{ playbook_dir }}/files"
         state: directory     
 
+
+- hosts: AGW
+  user: ubuntu
+  become: false
+  roles:
+    - role: 00-deploy-agw 
+
 - hosts: BASTIAN
   user: debian
   become: false
@@ -28,4 +35,12 @@
     - role: 03-build_orchestrator
     - role: 04-upload_images
     - role: 05-deploy 
+    - role: 07-get_certs
 
+- hosts: AGW
+  user: ubuntu
+  become: false
+  roles:
+    - role: 06-check-agw 
+
+    
