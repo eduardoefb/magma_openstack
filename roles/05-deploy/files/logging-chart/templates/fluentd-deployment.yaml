@@ -28,6 +28,19 @@ spec:
       - image: fluentd
         imagePullPolicy: ""
         name: fluentd
+        env:
+          - name: OUTPUT_HOST
+            value: "elasticsearch"
+          - name: OUTPUT_PORT
+            value: "9200"
+          - name: OUTPUT_SCHEME
+            value: "http"
+          - name: OUTPUT_SSL_VERSION
+            value: "TLSv1"
+          - name: OUTPUT_BUFFER_CHUNK_LIMIT
+            value: "2M"
+          - name: OUTPUT_BUFFER_QUEUE_LIMIT
+            value: "8"        
         ports:
         - containerPort: 24224
         - containerPort: 24224

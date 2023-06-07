@@ -3,7 +3,7 @@
   - name: Wait for installation
     become: true
     wait_for:
-      path: /tmp/installation_finished
+      path: /root/installation_finished
       timeout: 7200
 
   - name: Reboot

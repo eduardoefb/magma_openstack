@@ -1,20 +1,7 @@
 ---
 # tasks file for 01-image_builder
-- include_vars: "{{ playbook_dir }}/magma_config.yml"  
 - include_vars: "{{ playbook_dir }}/vars.yml" 
-- include_vars: "{{ playbook_dir }}/registry_credentials.yml"  
-
-- name: Remove directory
-  file: 
-    path: /home/debian/magma
-    state: absent
-
-- name: Clone magma repository
-  git:
-    repo: https://github.com/magma/magma.git
-    dest: /home/debian/magma
-    version: "{{ branch }}"
-
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
 
 - name: Delete .kube directory
   file:
@@ -32,12 +19,122 @@
     dest: /home/debian/.kube/config
     mode: '0400'
 
+- name: Install elasticsearch custom resource definitions
+  shell: |
+    if [ `kubectl -n elastic-system get statefulset | grep -P '\s+(\d+)/\1\s+' | wc -l` -eq 0 ]; then
+      kubectl create -f https://download.elastic.co/downloads/eck/2.8.0/crds.yaml
+    fi
+  register: attempt
+  retries: 600
+  delay: 10
+  until: attempt is success    
+
+- name: Install the operator with its RBAC rules
+  shell: kubectl apply -f https://download.elastic.co/downloads/eck/2.8.0/operator.yaml
+  register: attempt
+  retries: 600
+  delay: 10
+  until: attempt is success   
+
+- name: Wait until operator is up
+  shell: |
+    while kubectl -n elastic-system get statefulset | grep -vP '\s+(\d+)/\1\s+' | grep -v NAME; do
+      sleep 1
+    done
+
+- name: Remove directory
+  file: 
+    path: /home/debian/magma
+    state: absent
+
+- name: Clone magma repository
+  git:
+    repo: https://github.com/magma/magma.git
+    dest: /home/debian/magma
+    version: "{{ branch }}"
+
+- name: Check if kubernetes cluster is running
+  shell: kubectl get namespaces
+  register: check_kubectl
+  retries: 300
+  delay: 30
+  until: check_kubectl is success
+
 - name: Delete namespace if exists
   ignore_errors: true
   shell: kubectl delete namespace {{ namespace }}
 
 - name: Create namespace
   shell: kubectl create namespace {{ namespace }}
+
+- name: Apply a simple Elasticsearch cluster specification, with one Elasticsearch node
+  shell: |
+    cat <<EOF | kubectl -n {{ namespace }} apply -f -
+    apiVersion: elasticsearch.k8s.elastic.co/v1
+    kind: Elasticsearch
+    metadata:
+      name: {{ prefix }}
+    spec:
+      version: 8.8.0
+      nodeSets:
+      - name: default
+        count: 1
+        config:
+          node.store.allow_mmap: false
+    EOF
+
+- name: Wait until es cluster is green
+  shell: |
+    while ! kubectl -n {{ namespace }} get elasticsearch | grep green; do
+      sleep 1
+    done
+
+- name: To deploy your Kibana instance go through the following steps
+  shell: |
+    cat <<EOF | kubectl -n {{ namespace }} apply -f -
+    apiVersion: kibana.k8s.elastic.co/v1
+    kind: Kibana
+    metadata:
+      name: {{ prefix }}
+    spec:
+      version: 8.8.0
+      count: 1
+      elasticsearchRef:
+        name: {{ prefix }}
+    EOF
+
+- name: Wait until kb cluster is green
+  shell: |
+    while ! kubectl -n {{ namespace }} get kibana | grep green; do
+      sleep 1
+    done
+
+
+- name: Disable Elk tls and authentication
+  shell: |
+    kubectl patch -n {{ namespace }} elasticsearch orc8r --type merge -p '{"spec": {"http": {"tls": {"selfSignedCertificate": {"disabled": true}}}}}'  
+
+    cat << EOF > /tmp/patch.yml
+    spec:
+      nodeSets:
+      - config:
+          node.store.allow_mmap: false
+          xpack.security.authc:
+            anonymous:
+              authz_exception: false
+              roles: superuser
+              username: anonymous      
+        count: 1
+        name: default
+    EOF
+
+    kubectl -n {{ namespace }} patch elasticsearch orc8r --type merge --patch "$(cat /tmp/patch.yml)"
+
+- name: Create the elasticsearch service
+  shell: |
+    kubectl -n {{ namespace }}  expose service {{ prefix }}-es-http --type ClusterIP --name elasticsearch-logging
+    kubectl -n {{ namespace }}  expose service {{ prefix }}-es-http --type ClusterIP --name elasticsearch-master
+    kubectl -n {{ namespace }}  expose service {{ prefix }}-kb-http --type LoadBalancer --name  kibana-http-external
 
 - name: Add bitnami repo
   shell: helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -65,6 +162,7 @@
     /home/debian/magma/orc8r/cloud/deploy/scripts/self_sign_certs.sh {{ domain }}
     /home/debian/magma/orc8r/cloud/deploy/scripts/create_application_certs.sh {{ domain }}
     openssl req -nodes -new -x509 -batch -keyout nms_nginx.key -out nms_nginx.pem -subj "/CN=*.{{ domain }}"
+    openssl req -nodes -new -x509 -batch -keyout fluentd.key -out fluentd.pem -subj "/C=BR/CN=fluentd.{{ domain }}"
 
 - name: Clear certificate directory
   file:
@@ -93,30 +191,12 @@
       --set-file secret.certs.files."certifier\.key"=charts/secrets/.secrets/certs/certifier.key \
       --set-file secret.certs.files."nms_nginx\.pem"=charts/secrets/.secrets/certs/nms_nginx.pem \
       --set-file secret.certs.files."nms_nginx\.key\.pem"=charts/secrets/.secrets/certs/nms_nginx.key \
+      --set-file secret.certs.files."fluentd\.key"=charts/secrets/.secrets/certs/fluentd.key \
+      --set-file secret.certs.files."fluentd\.pem"=charts/secrets/.secrets/certs/fluentd.pem \
       --set=docker.registry={{ registry.url }} \
       --set=docker.username="{{ registry.username }}" \
       --set=docker.password="{{ registry.password }}" |
       kubectl apply -f -    
-
-- name: Delete fluentd certificate directory
-  file: 
-    path: /home/debian/fluentd
-    state: absent   
-
-- name: Create fluentd certificate directory
-  file: 
-    path: /home/debian/fluentd
-    state: directory
-
-- name: Create certificates for fluentd
-  shell: |
-    cd /home/debian
-    cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 > .rnd
-    openssl genrsa -out fluentd/fluentd.key 2048
-    openssl req -x509 -new -nodes -key fluentd/fluentd.key -sha256 -days 3650 -out fluentd/fluentd.pem -subj "/C=BR/CN=fluentd.{{ domain }}"    
-    kubectl -n {{ namespace }} create secret generic fluentd-certs --from-file=fluentd/
-  args:
-    executable: /bin/bash   
 
 - name: Get psql vars for orc8r 
   shell: | 
@@ -151,6 +231,14 @@
     orc8r_psql_pass: "{{ orc8r_psql_pw.stdout }}"
     nms_psql_pass: "{{ nms_psql_pw.stdout }}"      
 
+- name: Define values for logging
+  template:
+    src: values_logging.yml.j2 
+    dest: /home/debian/magma/orc8r/cloud/helm/orc8r/charts/logging/values.yaml
+  vars:
+    orc8r_psql_pass: "{{ orc8r_psql_pw.stdout }}"
+    nms_psql_pass: "{{ nms_psql_pw.stdout }}"   
+
 - name: Define values for orc8r-lte
   template:
     src: values_lte.yml.j2 
@@ -184,7 +272,7 @@
     cd /home/debian/magma/orc8r/cloud/helm/orc8r
     for f in `grep -lr -i 'policy/v1beta1'  *`; do sed -i 's|policy/v1beta1|policy/v1|g' $f; done
     helm dep update
-    helm install orc8r --namespace {{ namespace }} . --values=/home/debian/values.yaml --wait --timeout 3600s
+    helm install {{ prefix }} --namespace {{ namespace }} . --values=/home/debian/values.yaml --wait --timeout 3600s
   args:
     executable: /bin/bash  
 
@@ -192,8 +280,8 @@
   shell: | 
     cd /home/debian/magma/lte/cloud/helm/lte-orc8r
     for f in `grep -lr -i 'policy/v1beta1'  *`; do sed -i 's|policy/v1beta1|policy/v1|g' $f; done
-    helm dep update
-    helm install orc8r-lte --namespace {{ namespace }} . --values=/home/debian/values_lte.yaml  --wait --timeout 3600s
+    helm dep update    
+    helm install {{ prefix }}-lte --namespace {{ namespace }} . --values=/home/debian/values_lte.yaml  --wait --timeout 3600s
   args:
     executable: /bin/bash   
 
@@ -209,7 +297,7 @@
 - name: Create the kubernetes secrets
   shell: |
     cd /home/debian/magma/orc8r/cloud/helm/orc8r
-    helm template orc8r charts/secrets \
+    helm template {{ prefix }} charts/secrets \
       --namespace {{ namespace }} \
       --set-string secret.certs.enabled=true \
       --set-file secret.certs.files."rootCA\.pem"=charts/secrets/.secrets/certs/rootCA.pem \
@@ -231,17 +319,10 @@
   shell: |
     kubectl -n {{ namespace }} rollout restart deployment nms-magmalte
 
-- name: Clear fluentd files
-  file:
-    path: /home/debian/logging-chart
-    state: absent 
-
-- name: Copy fluentd files
-  copy:
-    src: logging-chart
-    dest: /home/debian/
-
-- name: Deploy fluentd
+- name: Configure admin pass
   shell: |
-    cd /home/debian/logging-chart
-    helm install -n {{ namespace }} logging .  --wait --timeout 3600s
+    kubectl --namespace {{ namespace }} exec -it deploy/nms-magmalte -- yarn setAdminPassword host {{ magma.admin_user }} {{ magma.admin_pass }}
+  register: passwd_set
+  retries: 600
+  delay: 10
+  until: passwd_set is success

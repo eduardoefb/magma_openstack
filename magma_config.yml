@@ -1,4 +1,0 @@
-kubeconfig_file: /home/eduardoefb/.kube/config
-namespace: orc8r 
-domain: lte.int
-branch: v1.8

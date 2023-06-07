@@ -14,11 +14,11 @@ release_group: null
 # Reference to one or more secrets to be used when pulling images
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets:
- - name: orc8r-secrets-registry
+ - name: {{ prefix }}-secrets-registry
 
 # Define which secrets should be mounted by pods.
 secret:
-  certs: orc8r-certs
+  certs: {{ prefix }}-certs
 
 certs:
   enabled: false
@@ -28,7 +28,7 @@ rbac: false
 magmalte:
   create: true
   env:
-    api_host: orc8r-nginx-proxy
+    api_host: {{ prefix }}-nginx-proxy
     host: 0.0.0.0
     port: 8081
     mysql_host: nmsdb
@@ -37,7 +37,7 @@ magmalte:
     mysql_user: postgres
     mysql_pass: {{ nms_psql_pass }}
     mysql_dialect: postgres
-    grafana_address: orc8r-user-grafana:3000
+    grafana_address: {{ prefix }}-user-grafana:3000
 
   labels: {}
 

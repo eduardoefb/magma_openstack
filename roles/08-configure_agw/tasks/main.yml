@@ -1,0 +1,38 @@
+---
+# tasks file for 01-update 
+  - include_vars: "{{ playbook_dir }}/vars.yml" 
+  - include_vars: "{{ playbook_dir }}/magma_config.yml" 
+
+  - name: Create directory if not present
+    file:
+      path: "{{ item }}"
+      state: directory 
+    loop:
+      - /var/opt/magma/tmp/certs
+      - /var/opt/magma/configs
+
+  - name: Create control_proxy.yml file
+    become: true
+    template:
+      src: control_proxy.yml.j2
+      dest: /var/opt/magma/configs/control_proxy.yml
+
+  - name: Copy rootca certificate
+    copy:
+      src: "{{ playbook_dir }}/certs/rootCA.pem" 
+      dest: /var/opt/magma/tmp/certs/rootCA.pem
+
+  - name: Get agw informations
+    shell: |
+      /usr/local/bin/show_gateway_info.py > /tmp/agw_info.txt
+  
+  - name: Download agw informations
+    fetch:
+      src: /tmp/agw_info.txt
+      dest: "{{ playbook_dir }}/files/agw_info.txt"
+      flat: true
+
+
+
+
+      

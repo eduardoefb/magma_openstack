@@ -12,44 +12,150 @@ Deploy:
 bash create.sh
 ```
 
-Once the orc8r and nms are deployed, create the admin user and password:
+Once the orchestrator and agw are deployed, execute the following script to integrate agw. The script will create the operator, network and agw as per defined in the `magma_config.yml` file.
+```shell
+bash integrate_agw.sh
+```
+
+To access the nms host url, open the `https://host.nms.<your-domain>`.  Example for domain `lte.int`: `https://host.nms.lte.int`
+
+
+If you want to change the password, you can do so using the following command:
 ```shell
 kubectl --namespace orc8r exec -it deploy/nms-magmalte -- yarn setAdminPassword host admin@magma Admin@123#
 ```
 
-Open the url and create the operator and admin user for it:
+Please open the URL and create the operator and admin users for it. Additionally, add the organization and assign a user as an admin, along with their password:
 ```shell
 https://host.nms.lte.int/
 ```
 
-Once operator is created, (ex:  custom), enter on it's url
-```shell
-https://custom.nms.lte.int/
-```
-Example:
+To access your operator's  url:
 ```log
 admin@custom.lte.int
 XTpOtJS5FrKg
 ```
-
-Create an operator and an admin user for it and open the url
-https://custom.nms.
+Please note that the provided example credentials are for illustrative purposes only. Make sure to use the actual username and password generated during the operator creation process.
 
 
-To access the api:
-https://api.lte.int/swagger/v1/ui/
+Once the operator is created (e.g., "custom"), navigate to its URL. and create the network¨
+```shell
+https://custom.nms.lte.int/
+
+```
+
+Obs: Alternativalley you can use the add_organization script (this organization will have access to all networks):
+```shell
+cd scripts
+python3 add_organization.py \
+  --admin_user admin@magma \
+  --admin_password Admin@123# \
+  --organization custom \
+  --organization_admin_user admin@custom.lte.int \
+  --domain lte.int \
+  --organization_admin_password XTpOtJS5FrKg
+
+python3 add_network.py \
+  --organization custom \
+  --organization_admin_user admin@custom.lte.int \
+  --domain lte.int \
+  --organization_admin_password XTpOtJS5FrKg \
+  --network_id custom \
+  --mcc 724 \
+  --mnc 17 \
+  --tac 100 \
+  --amf gAA= \
+  --network custom  
+
+
+python3 add_gw.py \
+  --organization custom \
+  --organization_admin_user admin@custom.lte.int \
+  --domain lte.int \
+  --organization_admin_password XTpOtJS5FrKg \
+  --network_id custom \
+  --network custom \
+  --gw_name agw01 \
+  --gw_id agw01 \
+  --gw_config_file ../../../files/agw_info.txt
+
+```
+
+
+To access the API, please utilize the provided URL:   
+
+Note: In order to gain access to this API, it is necessary to employ the certificate/key stored as admin_operator.pfx, which can be found in the certs directory.
 
 
 
 API Examples:
+List tenannts:
+```shell
+alias scurl='curl --cacert certs/rootCA.pem --cert certs/admin_operator.pem --key certs/admin_operator.key.pem'
+scurl -X 'GET' \
+  'https://api.lte.int/magma/v1/tenants' \
+  -H 'accept: application/json'
+```
 List networks:
 ```shell
-curl \
-  --cacert certs/rootCA.pem \
-  --cert certs/admin_operator.pem \
-  --key certs/admin_operator.key.pem \
+alias scurl='curl --cacert certs/rootCA.pem --cert certs/admin_operator.pem --key certs/admin_operator.key.pem'
+scurl \
   -X 'GET' \
   'https://api.lte.int/magma/v1/lte' \
+  -H 'accept: application/json'
+```
+
+Create network:
+```shell
+alias scurl='curl --cacert certs/rootCA.pem --cert certs/admin_operator.pem --key certs/admin_operator.key.pem'
+scurl -X 'POST' \
+  'https://api.lte.int/magma/v1/lte' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "cellular": {
+    "epc": {
+      "default_rule_id": "default_rule_1",
+      "gx_gy_relay_enabled": false,
+      "hss_relay_enabled": false,
+      "lte_auth_amf": "gAA=",
+      "lte_auth_op": "EREREREREREREREREREREQ==",
+      "mcc": "724",
+      "mnc": "17",
+      "network_services": [
+        "policy_enforcement"
+      ],
+      "tac": 1
+    },
+    "ran": {
+      "bandwidth_mhz": 20,
+      "tdd_config": {
+        "earfcndl": 44590,
+        "special_subframe_pattern": 7,
+        "subframe_assignment": 2
+      }
+    }
+  },
+  "description": "lte_network",
+  "dns": {
+    "enable_caching": false,
+    "local_ttl": 0
+  },
+  "features": {
+    "features": {
+      "placeholder": "true"
+    }
+  },
+  "id": "lte_network",
+  "name": "lte_network"
+}'
+```
+
+Get a generic network description:
+```shell
+alias scurl='curl --cacert certs/rootCA.pem --cert certs/admin_operator.pem --key certs/admin_operator.key.pem'
+scurl -X 'GET' \
+  'https://api.lte.int/magma/v1/networks/custom' \
   -H 'accept: application/json'
 ```
 

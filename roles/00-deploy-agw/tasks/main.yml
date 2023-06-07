@@ -41,7 +41,7 @@
   - name: Remove the file
     become: true
     file:
-      path: /tmp/installation_finished
+      path: /root/installation_finished
       state: absent
 
   - name: Reboot

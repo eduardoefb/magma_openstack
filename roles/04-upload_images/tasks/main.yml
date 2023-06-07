@@ -1,12 +1,15 @@
 ---
 # tasks file for 01-image_builder
-- include_vars: "{{ playbook_dir }}/magma_config.yml"  
 - include_vars: "{{ playbook_dir }}/vars.yml" 
-- include_vars: "{{ playbook_dir }}/registry_credentials.yml"  
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
 
 - name: Login to the registry
   shell: |
     docker login -u {{ registry.username }} -p {{ registry.password }} {{ registry.url }}
+  register: login_result
+  retries: 1080
+  delay: 10
+  until: login_result is success
 
 - name: Tag images
   shell: |
@@ -27,4 +30,8 @@
     - orc8r-test
     - orc8r-fluentd
     - orc8r-controller
+  register: push_result
+  retries: 1080
+  delay: 10
+  until: push_result is success    
 

@@ -1,0 +1,37 @@
+{
+  "gateways": {
+    "agw01": {
+      "description": "agw01",
+      "device": {
+        "hardware_id": "1de9e374-401f-4a58-abd7-97967e53af2a",
+        "key": {
+          "key": "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEWEUK2Og2OAeiBRwfV7prtA/1PyorsW9F7Bgle66h1COEH2fl5UnoLHBnLWiAs95s/GuUB8CwA4py5qVB4om8x7OeYpcSwDY+uH/qHK08IjjxUJPUZsC2I+NawWypwvuf",
+          "key_type": "SOFTWARE_ECDSA_SHA256"
+        }
+      },
+      "id": "agw01",
+      "magmad": {
+        "autoupgrade_enabled": true,
+        "autoupgrade_poll_interval": 60,
+        "checkin_interval": 60,
+        "checkin_timeout": 30,
+        "dynamic_services": [
+          "eventd",
+          "td-agent-bit"
+        ],
+        "logging": {
+          "aggregation": {
+            "target_files_by_tag": {
+              "mme": "var/log/mme.log"
+            }
+          },
+          "log_level": "DEBUG"
+        }
+      },
+      "name": "agw01",
+      "tier": "default"
+    }
+  },
+  "page_token": "",
+  "total_count": 1
+}

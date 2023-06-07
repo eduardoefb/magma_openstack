@@ -1,6 +1,7 @@
 #!/bin/bash
 cwd=`pwd`
 cd dns
+sed -i 's|\.$||g' dns-rc
 source dns-rc
 terraform destroy \
     -var "zone=${domain}" \
@@ -8,10 +9,12 @@ terraform destroy \
     -var "api=${api}" \
     -var "controller=${controller}" \
     -var "fluentd=${fluentd}" \
+    -var "kibana=${kibana}" \
     -var "nms=${nms}" --auto-approve    
-cd ${cwd}
 
-namespace=`grep -oP '(?<=^namespace:\s).*' magma_config.yml`
+namespace=`cat ../namespace.txt`
+domain=`cat ../domain.txt`
 kubectl delete namespace ${namespace}
+cd ${cwd}
 
 terraform destroy --auto-approve

@@ -1,0 +1,23 @@
+---
+# tasks file for 01-update 
+  - include_vars: "{{ playbook_dir }}/vars.yml" 
+  - include_vars: "{{ playbook_dir }}/magma_config.yml" 
+  - include_vars: "{{ playbook_dir }}/names.yml" 
+
+  - name: Get hostname
+    shell: hostname
+    register: hname
+
+  - name: Configure /etc/hosts
+    template:
+      src: hosts.j2
+      dest: /etc/hosts
+  
+  - name: Restart magma service
+    shell: |
+      service magma@* stop
+      service magma@magmad restart
+
+
+
+      

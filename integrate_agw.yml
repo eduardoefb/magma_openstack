@@ -1,0 +1,13 @@
+
+- hosts: BASTIAN
+  user: debian
+  become: false
+  roles:
+    - role: 09-add_organization
+
+- hosts: AGW
+  user: ubuntu
+  become: true
+  roles:
+    - role: 10-integrate_agw
+

@@ -13,6 +13,7 @@ required_version = ">= 0.14.0"
 
 data "openstack_dns_zone_v2" "zone"{
   name        = "${var.zone}."
+  
 }
 
 resource "openstack_dns_recordset_v2" "bootstrapper-controller" {
@@ -86,6 +87,16 @@ resource "openstack_dns_recordset_v2" "fluentd" {
 
 }
 
+resource "openstack_dns_recordset_v2" "kibana" {
+  zone_id     = data.openstack_dns_zone_v2.zone.id
+  name        = "kibana.${var.zone}."
+  description = "kibana"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.kibana}" ]
+
+}
+
 #################Variables##########################################
 
 variable "zone" {
@@ -111,3 +122,9 @@ variable "nms"{
 variable "fluentd"{
   description = "The fluentd recordset ip"
 }
+
+variable "kibana"{
+  description = "The kibana recordset ip"
+}
+
+

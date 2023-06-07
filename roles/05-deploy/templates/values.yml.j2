@@ -22,12 +22,12 @@ nms:
   certs:
     enabled: false
   secret:
-    certs: orc8r-secrets-certs
+    certs: {{ prefix }}-secrets-certs
 
 # Reference to one or more secrets to be used when pulling images
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: 
-  - name: orc8r-secrets-registry
+  - name: {{ prefix }}-secrets-registry
 
 ## metrics sub-chart configuration.
 
@@ -35,7 +35,7 @@ metrics:
   alertmanager:
     create: true
   alertmanagerConfigurer:
-    alertmanagerURL: orc8r-alertmanager:9093
+    alertmanagerURL: {{ prefix }}-alertmanager:9093
     create: true
     image:
       repository: docker.io/facebookincubator/alertmanager-configurer
@@ -70,7 +70,7 @@ metrics:
     image:
       repository: docker.io/facebookincubator/prometheus-configurer
       tag: 1.0.4
-    prometheusURL: orc8r-prometheus:9090
+    prometheusURL: {{ prefix }}-prometheus:9090
   thanos:
     enabled: false
   userGrafana:
@@ -101,10 +101,10 @@ secrets:
 
 # Define which secrets should be mounted by pods.
 secret:
-  certs: orc8r-secrets-certs
+  certs: {{ prefix }}-secrets-certs
   configs:
-    orc8r: orc8r-secrets-configs-orc8r
-  envdir: orc8r-secrets-envdir
+    orc8r: {{ prefix }}-secrets-configs-orc8r
+  envdir: {{ prefix }}-secrets-envdir
 
 # certs sub-chart configuration.
 certs:
@@ -207,7 +207,7 @@ controller:
     tag: {{ registry.tag }}
     pullPolicy: IfNotPresent
     env:
-      orc8r_domain_name: magma.test
+      orc8r_domain_name: {{ domain }}
   spec:
     # Postgres/mysql configuration
     database:

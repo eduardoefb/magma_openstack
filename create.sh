@@ -76,6 +76,17 @@ function update_inventory(){
 
 export REGISTRY_CA_CERT="${HOME}/k8s/certs/regca.crt"
 
+
+if [ "${1}" == "build" ]; then 
+    cat /dev/null 
+elif [ "${1}" == "no-build" ]; then 
+    cat /dev/null
+else
+    echo "Usage:"
+    echo "${0} [build|no-build]"
+    exit 0
+fi
+
 # Ask for the ansible-vault password
 read -s -p "Enter ansible-vault password: " ansible_password
 echo
@@ -121,19 +132,26 @@ if ! cat "${REGISTRY_CA_CERT}" > certs/regca.crt; then
     exit 1
 fi
 
-if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts run.yml --vault-password-file <(echo "$ansible_password"); then
-    exit 1
+if [ "${1}" == "build" ]; then 
+    if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts run.yml --vault-password-file <(echo "$ansible_password"); then
+        exit 1
+    fi
+elif [ "${1}" == "no-build" ]; then 
+    if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts run_no_image.yml --vault-password-file <(echo "$ansible_password"); then
+        exit 1
+    fi
 fi
 
 cwd=`pwd`
 cd dns
-namespace=`grep -oP '(?<=^namespace:\s).*' ../magma_config.yml`
-domain=`grep -oP '(?<=^domain:\s).*' ../magma_config.yml`
+namespace=`cat ../namespace.txt`
+domain=`cat ../domain.txt`
 bootstrapper=`kubectl -n ${namespace} get service bootstrapper-orc8r-nginx -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 api=`kubectl -n ${namespace} get service orc8r-nginx-proxy -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 controller=`kubectl -n ${namespace} get service orc8r-clientcert-nginx -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 nms=`kubectl -n ${namespace} get service nginx-proxy -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
-fluentd=`kubectl -n ${namespace} get service fluentd -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
+fluentd=`kubectl -n ${namespace} get service orc8r-fluentd-forward -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
+kibana=`kubectl -n ${namespace} get service kibana-http-external -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 
 
 cat << EOF > dns-rc
@@ -144,6 +162,7 @@ api=${api}
 controller=${controller}
 fluentd=${fluentd}
 nms=${nms}
+kibana=${kibana}
 EOF
 
 terraform init
@@ -154,6 +173,7 @@ terraform destroy \
   -var "api=${api}" \
   -var "controller=${controller}" \
   -var "fluentd=${fluentd}" \
+  -var "kibana=${kibana}" \
   -var "nms=${nms}" --auto-approve
 
 terraform apply \
@@ -162,6 +182,7 @@ terraform apply \
   -var "api=${api}" \
   -var "controller=${controller}" \
   -var "fluentd=${fluentd}" \
+  -var "kibana=${kibana}" \
   -var "nms=${nms}" --auto-approve
 
 

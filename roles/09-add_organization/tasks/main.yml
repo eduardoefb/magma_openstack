@@ -1,0 +1,79 @@
+---
+# tasks file for 01-image_builder
+- include_vars: "{{ playbook_dir }}/vars.yml" 
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
+
+    
+- name: Delete temporary directory
+  file:
+    path: /tmp/build
+    state: absent
+
+- name: Create temporary directory
+  file:
+    path: /tmp/build
+    state: directory
+
+- name: Copy agw info file
+  copy:
+    src: "{{ playbook_dir }}/files/agw_info.txt"
+    dest: /tmp/build/agw_info.txt
+
+- name: Copy the scripts and files
+  copy:
+    src: "{{ item }}"
+    dest: "/tmp/build/{{ item }}"
+  loop:
+    - add_organization.py
+    - add_network.py
+    - add_gw.py
+
+- name: Add organization
+  shell: |
+    cd /tmp/build/
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin xvfb-run /usr/bin/python3 add_organization.py \
+      --admin_user {{ magma.admin_user }} \
+      --admin_password {{ magma.admin_pass }} \
+      --organization {{ item.name }} \
+      --organization_admin_user {{ item.admin_user }} \
+      --organization_admin_password {{ item.admin_pass }} \
+      --domain {{ domain }} \
+      --headless
+  loop:
+    "{{ magma.organizations }}"
+
+- name: Add Network
+  shell: |
+    cd /tmp/build/
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin xvfb-run /usr/bin/python3 add_network.py \
+      --organization {{ item.name }} \
+      --organization_admin_user {{ item.admin_user }} \
+      --organization_admin_password {{ item.admin_pass }} \
+      --network {{ item.network.name }} \
+      --network_id {{ item.network.id }} \
+      --domain {{ domain }} \
+      --mcc {{ item.network.mcc }} \
+      --mnc {{ item.network.mnc }} \
+      --tac {{ item.network.tac }} \
+      --amf {{ item.network.lte_auth_amf }} \
+      --headless
+  loop:
+    "{{ magma.organizations }}"
+
+- name: Add Gateway
+  shell: |
+    cd /tmp/build/
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin xvfb-run /usr/bin/python3 add_gw.py \
+      --organization {{ item.name }} \
+      --organization_admin_user {{ item.admin_user }} \
+      --organization_admin_password {{ item.admin_pass }} \
+      --network {{ item.network.name }} \
+      --network_id {{ item.network.id }} \
+      --domain {{ domain }} \
+      --gw_name {{ item.network.agw_name }} \
+      --gw_id {{ item.network.agw_id }} \
+      --gw_id {{ item.network.agw_id }} \
+      --gw_config_file /tmp/build/agw_info.txt \
+      --headless
+  loop:
+    "{{ magma.organizations }}"    

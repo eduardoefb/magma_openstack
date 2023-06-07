@@ -12,7 +12,7 @@
 # Reference to one or more secrets to be used when pulling images
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: 
-  - name: orc8r-secrets-registry
+  - name: {{ prefix }}-secrets-registry
 
 certs:
   enabled: false
@@ -76,10 +76,10 @@ controller:
 
 # Define which secrets should be mounted by pods.
 secret:
-  certs: orc8r-secrets-certs
+  certs: {{ prefix }}-secrets-certs
   configs:
-    orc8r: orc8r-secrets-configs-orc8r
-  envdir: orc8r-secrets-envdir
+    orc8r: {{ prefix }}-secrets-configs-orc8r
+  envdir: {{ prefix }}-secrets-envdir
 
 lte:
   service:

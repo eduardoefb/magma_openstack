@@ -1,0 +1,37 @@
+{
+    "cellular": {
+        "epc": {
+            "default_rule_id": "default_rule_1",
+            "gx_gy_relay_enabled": false,
+            "hss_relay_enabled": false,
+            "lte_auth_amf": "{{ magma.network.lte_auth_amf }}",
+            "lte_auth_op": "{{ magma.network.lte_auth_op }}",
+            "mcc": "{{ magma.network.mcc }}",
+            "mnc": "{{ magma.network.mnc }}",
+            "network_services": [
+                "policy_enforcement"
+            ],
+            "tac": {{ magma.network.tac }}
+        },
+        "ran": {
+            "bandwidth_mhz": 20,
+            "tdd_config": {
+                "earfcndl": 44590,
+                "special_subframe_pattern": 7,
+                "subframe_assignment": 2
+            }
+        }
+    },
+    "description": "lte_network",
+    "dns": {
+        "enable_caching": false,
+        "local_ttl": 0
+    },
+    "features": {
+        "features": {
+            "placeholder": "true"
+        }
+    },
+    "id": "{{ magma.network.id }}",
+    "name": "{{ magma.network.name }}"
+}

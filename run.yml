@@ -1,6 +1,7 @@
 - hosts: localhost
   tasks:
     - include_vars: "{{ playbook_dir }}/vars.yml"
+    - include_vars: "{{ playbook_dir }}/magma_config.yml"
     - name: Wait for connection
       wait_for:
         host: "{{ item }}"
@@ -18,7 +19,14 @@
       file:
         path: "{{ playbook_dir }}/files"
         state: directory     
-
+  
+    - name: Create domain file
+      shell: |
+        echo {{ domain }} > {{ playbook_dir }}/domain.txt
+  
+    - name: Create namespace file
+      shell: |
+        echo {{ namespace }} > {{ playbook_dir }}/namespace.txt
 
 - hosts: AGW
   user: ubuntu
@@ -39,8 +47,9 @@
 
 - hosts: AGW
   user: ubuntu
-  become: false
+  become: true
   roles:
     - role: 06-check-agw 
+    - role: 08-configure_agw
 
     
