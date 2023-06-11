@@ -58,16 +58,37 @@ magma:
       key: "00000000000000000000000000000001"
       opc: "00000000000000000000000000000001"
       apn: custom.net
+      msisdn: "5531910000001"
+      msin: "0000000001"
+      imei: "356113022094151"
+      manufacturer: "EURECOM"
+      model: "LTE Android PC"
+      pin: "0000"  
+      hplmn: "72417"         
 
     - imsi: "724170000000002"
       key: "00000000000000000000000000000002"
       opc: "00000000000000000000000000000002"
       apn: custom.net
+      msisdn: "5531910000002"
+      msin: "0000000002"
+      imei: "356113022094152"
+      manufacturer: "EURECOM"
+      model: "LTE Android PC"
+      pin: "0000"  
+      hplmn: "72417"        
 
     - imsi: "724170000000003"
       key: "00000000000000000000000000000003"
       opc: "00000000000000000000000000000003"
       apn: custom.net
+      msisdn: "5531910000003"
+      msin: "0000000003"
+      imei: "356113022094153"
+      manufacturer: "EURECOM"
+      model: "LTE Android PC"
+      pin: "0000"  
+      hplmn: "72417"        
 ```
 
 Then, encrypt your configuration file using ansible-vault
