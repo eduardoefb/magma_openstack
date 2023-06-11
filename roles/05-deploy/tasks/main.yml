@@ -52,6 +52,10 @@
     repo: https://github.com/magma/magma.git
     dest: /home/debian/magma
     version: "{{ branch }}"
+  register: git_res
+  retries: 80
+  delay: 5
+  until: git_res is success       
 
 - name: Check if kubernetes cluster is running
   shell: kubectl get namespaces
@@ -67,7 +71,7 @@
 - name: Create namespace
   shell: kubectl create namespace {{ namespace }}
 
-- name: Apply a simple Elasticsearch cluster specification, with one Elasticsearch node
+- name: Install Elasticsearch
   shell: |
     cat <<EOF | kubectl -n {{ namespace }} apply -f -
     apiVersion: elasticsearch.k8s.elastic.co/v1
@@ -83,13 +87,13 @@
           node.store.allow_mmap: false
     EOF
 
-- name: Wait until es cluster is green
+- name: Wait for Elasticsearch
   shell: |
     while ! kubectl -n {{ namespace }} get elasticsearch | grep green; do
       sleep 1
     done
 
-- name: To deploy your Kibana instance go through the following steps
+- name: Install Kibana
   shell: |
     cat <<EOF | kubectl -n {{ namespace }} apply -f -
     apiVersion: kibana.k8s.elastic.co/v1
@@ -103,14 +107,14 @@
         name: {{ prefix }}
     EOF
 
-- name: Wait until kb cluster is green
+- name: Wait for Kibana
   shell: |
     while ! kubectl -n {{ namespace }} get kibana | grep green; do
       sleep 1
     done
 
 
-- name: Disable Elk tls and authentication
+- name: Disable Elasticsearch ssl and authentication
   shell: |
     kubectl patch -n {{ namespace }} elasticsearch orc8r --type merge -p '{"spec": {"http": {"tls": {"selfSignedCertificate": {"disabled": true}}}}}'  
 
@@ -130,7 +134,7 @@
 
     kubectl -n {{ namespace }} patch elasticsearch orc8r --type merge --patch "$(cat /tmp/patch.yml)"
 
-- name: Create the elasticsearch service
+- name: Create the Elasticsearch service
   shell: |
     kubectl -n {{ namespace }}  expose service {{ prefix }}-es-http --type ClusterIP --name elasticsearch-logging
     kubectl -n {{ namespace }}  expose service {{ prefix }}-es-http --type ClusterIP --name elasticsearch-master
@@ -150,19 +154,10 @@
     path: /home/debian/certs
     state: absent
 
-- name: Create certificate directory
-  file:
-    path: /home/debian/certs
-    state: directory
-    mode: '0700'
-
-- name: Create certificates
-  shell: |
-    cd /home/debian/certs
-    /home/debian/magma/orc8r/cloud/deploy/scripts/self_sign_certs.sh {{ domain }}
-    /home/debian/magma/orc8r/cloud/deploy/scripts/create_application_certs.sh {{ domain }}
-    openssl req -nodes -new -x509 -batch -keyout nms_nginx.key -out nms_nginx.pem -subj "/CN=*.{{ domain }}"
-    openssl req -nodes -new -x509 -batch -keyout fluentd.key -out fluentd.pem -subj "/C=BR/CN=fluentd.{{ domain }}"
+- name: Transfer the certificates 
+  copy:
+    src: "{{ playbook_dir }}/certs"
+    dest: /home/debian/
 
 - name: Clear certificate directory
   file:
@@ -193,6 +188,8 @@
       --set-file secret.certs.files."nms_nginx\.key\.pem"=charts/secrets/.secrets/certs/nms_nginx.key \
       --set-file secret.certs.files."fluentd\.key"=charts/secrets/.secrets/certs/fluentd.key \
       --set-file secret.certs.files."fluentd\.pem"=charts/secrets/.secrets/certs/fluentd.pem \
+      --set-file secret.certs.files."dp_fluentd\.key"=charts/secrets/.secrets/certs/dp_fluentd.key \
+      --set-file secret.certs.files."dp_fluentd\.pem"=charts/secrets/.secrets/certs/dp_fluentd.pem \
       --set=docker.registry={{ registry.url }} \
       --set=docker.username="{{ registry.username }}" \
       --set=docker.password="{{ registry.password }}" |
@@ -294,10 +291,10 @@
     kubectl -n {{ namespace }} cp ${cert_pod}:/admin_operator.pem charts/secrets/.secrets/certs/admin_operator.pem
     
 
-- name: Create the kubernetes secrets
+- name: Recreate the kubernetes secrets
   shell: |
     cd /home/debian/magma/orc8r/cloud/helm/orc8r
-    helm template {{ prefix }} charts/secrets \
+    helm template orc8r charts/secrets \
       --namespace {{ namespace }} \
       --set-string secret.certs.enabled=true \
       --set-file secret.certs.files."rootCA\.pem"=charts/secrets/.secrets/certs/rootCA.pem \
@@ -310,10 +307,14 @@
       --set-file secret.certs.files."certifier\.key"=charts/secrets/.secrets/certs/certifier.key \
       --set-file secret.certs.files."nms_nginx\.pem"=charts/secrets/.secrets/certs/nms_nginx.pem \
       --set-file secret.certs.files."nms_nginx\.key\.pem"=charts/secrets/.secrets/certs/nms_nginx.key \
+      --set-file secret.certs.files."fluentd\.key"=charts/secrets/.secrets/certs/fluentd.key \
+      --set-file secret.certs.files."fluentd\.pem"=charts/secrets/.secrets/certs/fluentd.pem \
+      --set-file secret.certs.files."dp_fluentd\.key"=charts/secrets/.secrets/certs/dp_fluentd.key \
+      --set-file secret.certs.files."dp_fluentd\.pem"=charts/secrets/.secrets/certs/dp_fluentd.pem \
       --set=docker.registry={{ registry.url }} \
       --set=docker.username="{{ registry.username }}" \
       --set=docker.password="{{ registry.password }}" |
-      kubectl apply -f -   
+      kubectl apply -f -  
    
 - name: Restart magma lte pods
   shell: |

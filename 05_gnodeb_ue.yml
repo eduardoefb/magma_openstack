@@ -1,0 +1,39 @@
+- hosts: localhost
+  tasks:
+    - include_vars: "{{ playbook_dir }}/vars.yml"
+    - include_vars: "{{ playbook_dir }}/magma_config.yml"
+    - name: Wait for connection
+      wait_for:
+        host: "{{ item }}"
+        port: 22
+        timeout: 3000
+      loop:
+        "{{ all }}"
+  
+    - name: Create domain file
+      shell: |
+        echo {{ domain }} > {{ playbook_dir }}/domain.txt
+  
+    - name: Create namespace file
+      shell: |
+        echo {{ namespace }} > {{ playbook_dir }}/namespace.txt
+
+- hosts: GNODEB, UE
+  user: ubuntu
+  become: true
+  roles:
+    - role: 12-openairinterface
+
+- hosts: GNODEB
+  user: ubuntu
+  become: true
+  roles:
+    - role: 13-gnodeb
+
+- hosts: UE
+  user: ubuntu
+  become: true
+  roles:
+    - role: 14-ue
+
+    

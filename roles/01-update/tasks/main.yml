@@ -67,10 +67,9 @@
   - name: Transfer the ca certificate
     become: true
     copy:
-      src: "{{ playbook_dir }}/certs/regca.crt" 
-      dest: /usr/local/share/ca-certificates/extra/regca.crt      
+      src: "{{ playbook_dir }}/certs/rootCA.pem" 
+      dest: /usr/local/share/ca-certificates/extra/rootCA.crt
 
-  
   - name: Update ca trusted list
     become: true
     shell: |
@@ -86,6 +85,36 @@
     vars:
       packages:
         - nfs-kernel-server 
-        - rsync      
+        - rsync
+    register: apt_res
+    retries: 300
+    delay: 10
+    until: apt_res is success              
+
+  - name: Install kubectl 
+    become: true
+    shell: |
+        if [ ! -f "/usr/local/bin/kubectl" ]; then
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          mv kubectl /usr/local/bin/
+          chmod +x /usr/local/bin/kubectl
+        fi
+
+  
+  - name: Download helm
+    become: true
+    unarchive:
+      src: https://get.helm.sh/helm-v3.2.1-linux-amd64.tar.gz 
+      dest: /tmp/
+      remote_src: yes  
+
+
+  - name: Move helm binary to /usr/local/bin/
+    become: true
+    copy:
+      src: /tmp/linux-amd64/helm
+      dest: /usr/local/bin/helm
+      mode: 'a+x'
+      remote_src: yes
 
   

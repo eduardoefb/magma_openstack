@@ -13,6 +13,10 @@
     repo: https://github.com/magma/magma.git
     dest: /home/debian/magma
     version: "{{ branch }}"
+  register: git_res
+  retries: 80
+  delay: 5
+  until: git_res is success     
 
 - name: reboot
   become: true

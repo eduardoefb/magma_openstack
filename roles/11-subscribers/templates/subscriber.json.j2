@@ -1,0 +1,22 @@
+[
+    {% for i in magma.subscribers %}
+
+    {
+        "active_apns": 
+        [
+            "{{ i.apn }}"
+        ],
+        "id": "IMSI{{ i.imsi }}",
+        "lte": 
+        {
+            "auth_algo": "MILENAGE",
+            "auth_key": "key_{{ i.imsi }}",
+            "auth_opc": "opc_{{ i.imsi }}",
+            "state": "ACTIVE",
+            "sub_profile": "default"
+        }
+    }{% if not loop.last %},{% endif %}
+
+    {% endfor %}
+  
+]

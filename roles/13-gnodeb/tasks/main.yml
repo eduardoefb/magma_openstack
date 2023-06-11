@@ -1,0 +1,93 @@
+---
+# tasks file for 01-image_builder
+- include_vars: "{{ playbook_dir }}/vars.yml" 
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
+
+- name: Get first interface
+  shell: |
+    interfaces=($(ip link | grep --color -oP '(?<=\d:\s)(.*)(?=:\s<)' | grep -v lo))
+    echo ${interfaces[0]}
+  register: eth0
+  args: 
+    executable: /bin/bash
+
+- name: Get first interface mac
+  shell: |
+    interfaces=($(ip link | grep --color -oP '(?<=\d:\s)(.*)(?=:\s<)' | grep -v lo))  
+    ip link show dev ${interfaces[0]} | grep -oP '(?<=ether\s)(.*)(?=\sbrd\s)'
+  register: eth0_mac
+  args: 
+    executable: /bin/bash
+
+- name: Get second interface
+  shell: |
+    interfaces=($(ip link | grep --color -oP '(?<=\d:\s)(.*)(?=:\s<)' | grep -v lo))
+    echo ${interfaces[1]}
+  register: eth1
+  args: 
+    executable: /bin/bash
+
+- name: Get second interface mac
+  shell: |
+    interfaces=($(ip link | grep --color -oP '(?<=\d:\s)(.*)(?=:\s<)' | grep -v lo))  
+    ip link show dev ${interfaces[1]} | grep -oP '(?<=ether\s)(.*)(?=\sbrd\s)'
+  register: eth1_mac
+  args: 
+    executable: /bin/bash
+
+- name: Netplan template
+  template:
+    src: netplan.yml.j2
+    dest: /etc/netplan/50-cloud-init.yaml
+
+- name: Apply netplan
+  shell: netplan apply
+
+- name: Configure iproute2
+  template:
+    src: iproute2.j2
+    dest: /etc/iproute2/rt_tables
+
+- name: Create directory
+  file:
+    path: /etc/network/interfaces.d
+    state: directory 
+
+- name: Restart network
+  systemd:
+    name: systemd-networkd.service
+    state: restarted
+
+- name: Configure enodeb
+  template: 
+    src: enodeb.conf.j2
+    dest: /root/opencells-mods/enb.sample
+    owner: root 
+    group: root 
+    mode: '744'
+      
+- name: Create script 
+  template:
+    src: connect.sh.j2
+    dest: /usr/local/bin/enodeb.sh
+    mode: '755'
+
+- name: Define the service
+  template:
+    src: enodeb.service.j2
+    dest: /etc/systemd/system/enodeb.service
+
+- name: Reload systemd configuration
+  become: true
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start enodeb service
+  become: true
+  systemd:
+    name: enodeb.service
+    enabled: yes
+    state: restarted
+
+       
+

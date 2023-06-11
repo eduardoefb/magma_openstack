@@ -28,28 +28,21 @@
       shell: |
         echo {{ namespace }} > {{ playbook_dir }}/namespace.txt
 
-- hosts: AGW
-  user: ubuntu
-  become: false
-  roles:
-    - role: 00-deploy-agw 
-
+          
 - hosts: BASTIAN
   user: debian
   become: false
   roles:
-    - role: 01-update 
+    - role: 01-update
+      when: orc8r|default(false)|bool == true
     - role: 02-image_builder
+      when: build_images|default(false)|bool == true
     - role: 03-build_orchestrator
+      when: build_images|default(false)|bool == true 
     - role: 04-upload_images
+      when: build_images|default(false)|bool == true 
     - role: 05-deploy 
+      when: orc8r|default(false)|bool == true
     - role: 07-get_certs
-
-- hosts: AGW
-  user: ubuntu
-  become: true
-  roles:
-    - role: 06-check-agw 
-    - role: 08-configure_agw
-
-    
+      when: orc8r|default(false)|bool == true
+ 

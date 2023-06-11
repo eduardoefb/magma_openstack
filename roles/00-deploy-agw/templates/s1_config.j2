@@ -1,0 +1,5 @@
+auto eth1
+iface eth1 inet dhcp
+    post-up ip rule add from {{ agw_s1_ip }} table s1
+    post-up ip route add default via {{ magma.agw.s1.gateway }} table s1
+    post-up ip route flush cache

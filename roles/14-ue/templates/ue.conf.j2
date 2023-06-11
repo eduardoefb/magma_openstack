@@ -1,0 +1,50 @@
+# List of known PLMNS
+PLMN: {
+
+{% for p in magma.organizations %}
+    PLMN{{ loop.index0 }}: {
+           FULLNAME="{{ p.name }}";
+           SHORTNAME="{{ p.name }}";
+           MNC="{{ p.network.mnc }}";
+           MCC="{{ p.network.mcc }}";
+
+    };
+{% endfor %}
+};
+
+UE0:
+{
+    USER: {
+        IMEI="{{ ueind.imei }}";
+        MANUFACTURER="{{ ueind.manufacturer }}";
+        MODEL="{{ ueind.model }}";
+        PIN="{{ ueind.pin }}";
+    };
+
+    SIM: {
+        MSIN="{{ ueind.msin }}";
+        USIM_API_K="{{ ueind.key }}";
+        OPC=       "{{ ueind.opc }}";
+        MSISDN="{{ ueind.msisdn }}";
+    };
+
+    # Home PLMN Selector with Access Technology
+    HPLMN= "{{ ueind.hplmn }}";
+
+    # User controlled PLMN Selector with Access Technology
+    UCPLMN_LIST = ();
+
+    # Operator PLMN List
+    OPLMN_LIST = ("{{ ueind.hplmn }}");
+
+    # Operator controlled PLMN Selector with Access Technology
+    OCPLMN_LIST = ("{{ ueind.hplmn }}");
+
+    # Forbidden plmns
+    FPLMN_LIST = ();
+
+    # List of Equivalent HPLMNs
+#TODO: UE does not connect if set, to be fixed in the UE
+#    EHPLMN_LIST= ("20811", "20813");
+    EHPLMN_LIST= ();
+};

@@ -1,0 +1,15 @@
+{
+  "apn_configuration": {
+    "ambr": {
+      "max_bandwidth_dl": {{ magma.apn.max_bandwidth_dl }},
+      "max_bandwidth_ul": {{ magma.apn.max_bandwidth_ul }}
+    },
+    "qos_profile": {
+      "class_id": {{ magma.apn.qos }},
+      "preemption_capability": true,
+      "preemption_vulnerability": false,
+      "priority_level": 15
+    }
+  },
+  "apn_name": "{{ magma.apn.name }}"
+}

@@ -15,6 +15,7 @@
     state: directory
 
 - name: Copy agw info file
+  ignore_errors: true
   copy:
     src: "{{ playbook_dir }}/files/agw_info.txt"
     dest: /tmp/build/agw_info.txt
@@ -60,6 +61,7 @@
   loop:
     "{{ magma.organizations }}"
 
+
 - name: Add Gateway
   shell: |
     cd /tmp/build/
@@ -76,4 +78,5 @@
       --gw_config_file /tmp/build/agw_info.txt \
       --headless
   loop:
-    "{{ magma.organizations }}"    
+    "{{ magma.organizations }}" 
+ 

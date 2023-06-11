@@ -1,0 +1,89 @@
+---
+# tasks file for 01-image_builder
+- include_vars: "{{ playbook_dir }}/vars.yml" 
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
+
+    
+- name: Clear directory
+  file:
+    path: /tmp/subscribers
+    state: absent
+
+- name: Create directory
+  file:
+    path: /tmp/subscribers
+    state: directory
+
+- name: Get certs from pod
+  shell: |
+    certifier_pod=`kubectl -n {{ namespace }} get pod -l app.kubernetes.io/component=certifier -o jsonpath='{.items[0].metadata.name}'`
+    kubectl -n {{ namespace }} cp ${certifier_pod}:/var/opt/magma/certs/..data/{{ item }} /tmp/subscribers/{{ item }}
+  loop:
+    - admin_operator.key.pem
+    - admin_operator.pem
+    - rootCA.pem
+
+- name: Copy files
+  copy:
+    src: text2bin.c
+    dest: /tmp/subscribers/text2bin.c
+
+- name: Compile file
+  shell: gcc -g /tmp/subscribers/text2bin.c -o /tmp/subscribers/text2bin
+
+- name: APN template
+  template:
+    src: apn.json.j2
+    dest: /tmp/subscribers/apn.json
+
+- name: Configure apn
+  uri:
+    url: "https://api.{{ domain }}/magma/v1/lte/{{ magma.organizations[0].network.id }}/apns"
+    method: POST
+    headers:
+      accept: "application/json"
+      content-type: "application/json"
+    src: "/tmp/subscribers/apn.json"
+    force_basic_auth: true
+    validate_certs: true
+    client_cert: "/tmp/subscribers/admin_operator.pem"
+    client_key: "/tmp/subscribers/admin_operator.key.pem"
+    ca_path: "/tmp/subscribers/rootCA.pem"
+    status_code: [200, 201, 500]
+    remote_src: true
+  
+- name: Subscriber template
+  template:
+    src: subscriber.json.j2
+    dest: "/tmp/subscribers/subscribers.json"
+
+- name: Replace the key and opc
+  shell: |
+    cd /tmp/subscribers
+    opc_encoded=`./text2bin {{ item.opc }} | tr '[:upper:]' '[:lower:]' | base64` 
+    key_encoded=`./text2bin {{ item.key }} | tr '[:upper:]' '[:lower:]' | base64` 
+    sed -i "s|key_{{ item.imsi }}|${key_encoded}|g" subscribers.json
+    sed -i "s|opc_{{ item.imsi }}|${opc_encoded}|g" subscribers.json
+  loop:
+    "{{ magma.subscribers }}"
+
+- name: Configure subscribers
+  uri:
+    url: "https://api.{{ domain }}/magma/v1/lte/{{ magma.organizations[0].network.id }}/subscribers"
+    method: POST
+    headers:
+      accept: "application/json"
+      content-type: "application/json"
+    src: "/tmp/subscribers/subscribers.json"
+    force_basic_auth: true
+    validate_certs: true
+    client_cert: "/tmp/subscribers/admin_operator.pem"
+    client_key: "/tmp/subscribers/admin_operator.key.pem"
+    ca_path: "/tmp/subscribers/rootCA.pem"
+    status_code: [200, 201, 500]
+    remote_src: true
+
+- name: Delete directory
+  file:
+    path: /tmp/subscribers
+    state: absent

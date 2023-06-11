@@ -15,6 +15,14 @@ variable environment {
                      bastian_flavor = string,
                      agw_flavor = string,
                      bastian_az = string,
+                     gnodeb_az = string,                     
+                     gnodeb_image = string,
+                     gnodeb_secgroup_name = string,
+                     gnodeb_flavor = string,
+                     ue_az = string,
+                     ue_image = string,
+                     ue_secgroup_name = string,
+                     ue_flavor = string,                                     
                      agw_az = string,
                      domain = string})
     default = {
@@ -33,8 +41,52 @@ variable environment {
         domain = "lte.int.",
         external_network = "lb",
         external_subnet = "lb",
+        gnodeb_secgroup_name = "gnodeb_sec_group",
+        gnodeb_az = "zone03",
+        gnodeb_image = "ubuntu_18.04",
+        gnodeb_flavor = "m1.medium",
+        ue_secgroup_name = "gnodeb_sec_group",
+        ue_az = "zone03",
+        ue_image = "ubuntu_18.04",
+        ue_flavor = "m1.medium",        
         s1_network = "clabext01",
         s1_subnet = "clabext01_ipv4",
         s1_agw_ip = "10.3.0.155"     
     }
 }
+
+variable "bootstrapper"{
+  description = "The bootstrapper-controller recordset ip"
+  default = "0.0.0.0"
+}
+
+variable "api"{
+  description = "The api recordset ip"
+  default = "0.0.0.0"
+}
+
+variable "controller"{
+  description = "The controller recordset ip"
+  default = "0.0.0.0"
+}
+
+variable "nms"{
+  description = "The controller recordset ip"
+  default = "0.0.0.0"
+}
+
+variable "fluentd"{
+  description = "The fluentd recordset ip"
+  default = "0.0.0.0"
+}
+
+variable "kibana"{
+  description = "The kibana recordset ip"
+  default = "0.0.0.0"
+}
+
+variable "create_ran" {
+  type    = bool
+  default = false
+}
+

@@ -20,7 +20,7 @@
   - name: Copy rootca certificate
     copy:
       src: "{{ playbook_dir }}/certs/rootCA.pem" 
-      dest: /var/opt/magma/tmp/certs/rootCA.pem
+      dest: /var/opt/magma/tmp/certs/rootCA.pem 
 
   - name: Get agw informations
     shell: |

@@ -1,0 +1,13 @@
+network:
+    ethernets:
+        {{ eth0.stdout }}:
+            dhcp4: true
+            match:
+                macaddress: {{ eth0_mac.stdout }}
+            set-name: {{ eth0.stdout }}
+        {{ eth1.stdout }}:
+            dhcp4: true
+            match:
+                macaddress: {{ eth1_mac.stdout }}
+            set-name: {{ eth1.stdout }}            
+    version: 2

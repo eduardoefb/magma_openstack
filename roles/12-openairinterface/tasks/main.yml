@@ -1,0 +1,148 @@
+---
+# tasks file for 01-image_builder
+- include_vars: "{{ playbook_dir }}/vars.yml" 
+- include_vars: "{{ playbook_dir }}/magma_config.yml"  
+
+- name: Update 
+  become: true
+  apt:
+    name: '*'
+    state: 'latest'
+    update_cache: yes
+  register: apt_res
+  retries: 300
+  delay: 10
+  until: apt_res is success 
+
+- name: Check if reboot required
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_required_file    
+
+- name: Reboot
+  reboot:
+    msg: Reboot triggered
+    reboot_timeout: 360
+  when: reboot_required_file.stat.exists == true
+
+- name: Install the required packages
+  apt:
+    pkg:
+      - libboost-all-dev 
+      - libusb-1.0-0-dev 
+      - python-mako 
+      - doxygen 
+      - python-docutils 
+      - python-requests 
+      - python3-pip 
+      - cmake 
+      - build-essential
+      - git
+
+- name: Install Mako and NumPy using pip
+  pip:
+    name:
+      - mako
+      - numpy
+    executable: pip3
+
+- name: Configure Git user
+  git_config:
+    scope: global
+    name: user.name
+    value: "Laurent"
+
+- name: Configure Git email
+  git_config:
+    scope: global
+    name: user.email
+    value: "laurent.thomas@open-cells.com"
+
+- name: Check if deploy finished file exists
+  stat:
+    path: /var/oai_installed
+  register: finished_status
+
+- name: Add GitLab certificate
+  command:
+    cmd: "echo -n | openssl s_client -showcerts -connect gitlab.eurecom.fr:443 2>/dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | tee -a /etc/ssl/certs/ca-certificates.crt"
+  when: finished_status.stat.exists == false
+
+- name: Clear the build directory
+  file:
+    path: "{{ item }}"
+    state: absent 
+  loop:
+    - /root/uhd
+    - /root/openairinterface5g
+    - /root/opencells-mods
+  when: finished_status.stat.exists == false
+
+- name: Clone uhd repository
+  git:
+    repo: https://github.com/EttusResearch/uhd.git
+    dest: /root/uhd
+    version: master
+  when: finished_status.stat.exists == false
+
+- name: Build USRP drivers
+  shell: |
+    if [ ! -f /opt/uhd.done ]; then
+      cd /root/uhd; mkdir host/build; cd host/build
+      cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+      make -j4 > /tmp/uhd_make.log
+      make install >> /tmp/uhd_make.log
+      if [ $? -eq 0 ] ; then touch /opt/uhd.done; fi
+      ldconfig      
+    fi
+  when: finished_status.stat.exists == false
+
+- name: Download uhd images
+  shell: /usr/lib/uhd/utils/uhd_images_downloader.py
+  when: finished_status.stat.exists == false
+
+- name: Clone OAI
+  git:
+    repo: https://gitlab.eurecom.fr/oai/openairinterface5g.git
+    dest: /root/openairinterface5g
+    version: develop
+  when: finished_status.stat.exists == false    
+
+- name: Copy file
+  copy:
+    src: emm_msg.c
+    dest: /root/openairinterface5g/openair3/NAS/COMMON/EMM/MSG/emm_msg.c
+  when: finished_status.stat.exists == false
+
+- name: Build OAI part 1
+  shell: |
+    cd /root/openairinterface5g    
+    source oaienv
+    ./cmake_targets/build_oai -I > /tmp/oai_make.log
+  when: finished_status.stat.exists == false    
+
+- name: Build OAI part 2
+  shell: |
+    cd /root/openairinterface5g
+    source oaienv
+    ./cmake_targets/build_oai -w USRP --eNB --UE >> /tmp/oai_make.log
+  when: finished_status.stat.exists == false    
+
+- name: Clear directory
+  file:
+    path: /root/opencells-mods
+    state: absent
+  when: finished_status.stat.exists == false
+
+- name: Get opencells mods
+  unarchive:
+    src: https://open-cells.com/opencells-mods-20190923.tgz
+    dest: /root/
+    remote_src: true   
+  when: finished_status.stat.exists == false
+
+- name: Create finished file
+  shell: touch /var/oai_installed
+
+       
+

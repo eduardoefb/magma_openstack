@@ -1,18 +1,17 @@
 ---
 # tasks file for 01-update 
-  - name: Copy script
-    become: true
-    copy:
-      src: agw_install_ubuntu.sh
-      dest: /root/agw_install_ubuntu.sh
-
-  - name: Update APT cache
-    become: true
+  - include_vars: "{{ playbook_dir }}/vars.yml" 
+  - include_vars: "{{ playbook_dir }}/magma_config.yml"  
+  - name: Update APT cache    
     apt:
       update_cache: yes
-
+    register: apt_res
+    retries: 300
+    delay: 2
+    until: apt_res is success         
+      
+  - include_vars: "{{ playbook_dir }}/vars.yml" 
   - name: Install required packages
-    become: true
     apt:
       pkg:
         - ifupdown
@@ -29,26 +28,64 @@
         - python-dev 
         - apt-transport-https
       update_cache: yes
+    register: apt_res
     retries: 300
     delay: 10
+    until: apt_res is success  
 
-  - name: Install agw
-    become: true 
+  - name: Get netmask value
+    shell: |
+      ipcalc {{ s1_subnet_cidr }} | grep Netmask: | awk '{print $2}'
+    register: netmask
+
+  - name: Copy script
+    template:
+      src: agw_install_ubuntu.sh.j2
+      dest: /root/agw_install_ubuntu.sh
+
+  - name: Update APT cache
+    apt:
+      update_cache: yes
+    register: apt_res
+    retries: 300
+    delay: 10
+    until: apt_res is success    
+  
+  - name: Trigger AGW installation
     shell: |
       cd /root
       bash agw_install_ubuntu.sh
 
   - name: Remove the file
-    become: true
     file:
       path: /root/installation_finished
       state: absent
 
   - name: Reboot
-    become: true
     reboot:
       msg: Reboot triggered
       reboot_timeout: 3600
+
+  - name: Define routing tables
+    template:
+      src: rt_tables.j2
+      dest: /etc/iproute2/rt_tables
+  
+  - name: Define s1 routing table
+    template:
+      src: s1_config.j2
+      dest: /etc/network/interfaces.d/eth1
+      owner: root
+      group: root
+      mode: '0644'
+  
+  - name: Flush eth1 addresses
+    shell: ip addr flush dev eth1
+    
+  - name: Restart networking
+    systemd:
+      name: networking.service
+      state: restarted
 
 
       

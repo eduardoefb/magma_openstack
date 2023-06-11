@@ -1,239 +1,145 @@
-#### Deploy magma on kubespray 
-Copy the kubespray certificate authority to the current directory
+### Deploy magma on kubespray 
 
-```
-rm -rf certs
-mkdir certs
-cat ~/k8s/certs/regca.crt > certs/regca.crt
+
+#### 1 - Configuration file
+Create the configuration file `magma_config.yml` with passwords and other configurations.  Example below:
+
+```yaml
+namespace: orc8r 
+prefix: orc8r
+domain: lte.int
+c: C=BR
+cert_validity: 3650
+branch: v1.8
+kubeconfig_file: /home/magmauser/.kube/config
+
+ca_cert: /opt/cert/regca.crt
+ca_key: /opt/cert/regca.key
+
+registry:
+  url: registry.kube.int
+  username: magmauser
+  password: magmapwd123
+  project: magma
+  tag: 1.8.0
+
+magma:
+  admin_user: admin@magma
+  admin_pass: c2b75b163227d41d5e51
+
+  organizations:
+    - name: custom
+      admin_user: admin@custom.lte.int
+      admin_pass: a97fba00a0af6fad9881
+  
+      network:
+        id: custom 
+        name: custom 
+        lte_auth_amf: gAA=
+        lte_auth_op: NUYwQUY2RjJEOEIzRkM5MzcxMDU5NDk2OThFRUE1RkI=
+        mcc: 724
+        mnc: 17
+        tac: 100
+        agw_id: agw01
+        agw_name: agw01
+  
+  agw:
+    s1:
+      gateway: 10.3.0.1
+
+  apn: 
+    name: custom.net
+    max_bandwidth_dl: 100000000
+    max_bandwidth_ul: 100000000
+    qos: 9
+
+  subscribers:
+    - imsi: "724170000000001"
+      key: "00000000000000000000000000000001"
+      opc: "00000000000000000000000000000001"
+      apn: custom.net
+
+    - imsi: "724170000000002"
+      key: "00000000000000000000000000000002"
+      opc: "00000000000000000000000000000002"
+      apn: custom.net
+
+    - imsi: "724170000000003"
+      key: "00000000000000000000000000000003"
+      opc: "00000000000000000000000000000003"
+      apn: custom.net
 ```
 
+Then, encrypt your configuration file using ansible-vault
+```shell
+ansible-vault encrypt magma_config.yml
+```
+
+#### 2 - Start the deployment:
+
+Start the `create.sh` script with the option `build`. It will build the images and upload to the registry:
 Deploy:
 ```shell
-bash create.sh
+bash create.sh build orc8r agw ran
+
 ```
 
-Once the orchestrator and agw are deployed, execute the following script to integrate agw. The script will create the operator, network and agw as per defined in the `magma_config.yml` file.
+
+#### 3 - Enodeb and UE:
+Once the vms are created, build enodeb/ue separatelly:
 ```shell
-bash integrate_agw.sh
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts 05_gnodeb_ue.yml --ask-vault-password
 ```
 
-To access the nms host url, open the `https://host.nms.<your-domain>`.  Example for domain `lte.int`: `https://host.nms.lte.int`
-
-
-If you want to change the password, you can do so using the following command:
+#### 4 - Post installation:
+Once magma is installed, if eu and gnodeb, you can connect to the UE and check if the session is established:
 ```shell
-kubectl --namespace orc8r exec -it deploy/nms-magmalte -- yarn setAdminPassword host admin@magma Admin@123#
+sudo ip addr show dev oaitun_ue1
 ```
 
-Please open the URL and create the operator and admin users for it. Additionally, add the organization and assign a user as an admin, along with their password:
-```shell
-https://host.nms.lte.int/
-```
-
-To access your operator's  url:
+Example:
 ```log
-admin@custom.lte.int
-XTpOtJS5FrKg
+ubuntu@magma-ue01:~$ sudo ip addr show dev oaitun_ue1
+5: oaitun_ue1: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UNKNOWN group default qlen 500
+    link/none 
+    inet 192.168.128.14/24 brd 192.168.128.255 scope global oaitun_ue1
+       valid_lft forever preferred_lft forever
+    inet6 fe80::392e:f213:9a79:e993/64 scope link stable-privacy 
+       valid_lft forever preferred_lft forever
+ubuntu@magma-ue01:~$ 
 ```
-Please note that the provided example credentials are for illustrative purposes only. Make sure to use the actual username and password generated during the operator creation process.
 
+To validate the connection, add a static route via oaitun_ue1 interface:
 
-Once the operator is created (e.g., "custom"), navigate to its URL. and create the network¨
+First add a static route to your local ip address, to avoid to loss the connection with the UE:
 ```shell
-https://custom.nms.lte.int/
-
+ip route add <your local ssh ip addr> via <original default gw>
 ```
 
-Obs: Alternativalley you can use the add_organization script (this organization will have access to all networks):
+Than, delete the default gateway and add it to via oaitun_ue1
 ```shell
-cd scripts
-python3 add_organization.py \
-  --admin_user admin@magma \
-  --admin_password Admin@123# \
-  --organization custom \
-  --organization_admin_user admin@custom.lte.int \
-  --domain lte.int \
-  --organization_admin_password XTpOtJS5FrKg
-
-python3 add_network.py \
-  --organization custom \
-  --organization_admin_user admin@custom.lte.int \
-  --domain lte.int \
-  --organization_admin_password XTpOtJS5FrKg \
-  --network_id custom \
-  --mcc 724 \
-  --mnc 17 \
-  --tac 100 \
-  --amf gAA= \
-  --network custom  
-
-
-python3 add_gw.py \
-  --organization custom \
-  --organization_admin_user admin@custom.lte.int \
-  --domain lte.int \
-  --organization_admin_password XTpOtJS5FrKg \
-  --network_id custom \
-  --network custom \
-  --gw_name agw01 \
-  --gw_id agw01 \
-  --gw_config_file ../../../files/agw_info.txt
-
+ip route del default
+ip route add default dev  oaitun_ue1
 ```
 
-
-To access the API, please utilize the provided URL:   
-
-Note: In order to gain access to this API, it is necessary to employ the certificate/key stored as admin_operator.pfx, which can be found in the certs directory.
-
-
-
-API Examples:
-List tenannts:
+#### In case of network changes, execute terraform as:
 ```shell
-alias scurl='curl --cacert certs/rootCA.pem --cert certs/admin_operator.pem --key certs/admin_operator.key.pem'
-scurl -X 'GET' \
-  'https://api.lte.int/magma/v1/tenants' \
-  -H 'accept: application/json'
-```
-List networks:
-```shell
-alias scurl='curl --cacert certs/rootCA.pem --cert certs/admin_operator.pem --key certs/admin_operator.key.pem'
-scurl \
-  -X 'GET' \
-  'https://api.lte.int/magma/v1/lte' \
-  -H 'accept: application/json'
-```
+namespace=`cat namespace.txt`
+bootstrapper=`kubectl -n ${namespace} get service bootstrapper-orc8r-nginx -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"` 
+api=`kubectl -n ${namespace} get service orc8r-nginx-proxy -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
+controller=`kubectl -n ${namespace} get service orc8r-clientcert-nginx -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
+nms=`kubectl -n ${namespace} get service nginx-proxy -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
+fluentd=`kubectl -n ${namespace} get service orc8r-fluentd-forward -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
+kibana=`kubectl -n ${namespace} get service kibana-http-external -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
 
-Create network:
-```shell
-alias scurl='curl --cacert certs/rootCA.pem --cert certs/admin_operator.pem --key certs/admin_operator.key.pem'
-scurl -X 'POST' \
-  'https://api.lte.int/magma/v1/lte' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "cellular": {
-    "epc": {
-      "default_rule_id": "default_rule_1",
-      "gx_gy_relay_enabled": false,
-      "hss_relay_enabled": false,
-      "lte_auth_amf": "gAA=",
-      "lte_auth_op": "EREREREREREREREREREREQ==",
-      "mcc": "724",
-      "mnc": "17",
-      "network_services": [
-        "policy_enforcement"
-      ],
-      "tac": 1
-    },
-    "ran": {
-      "bandwidth_mhz": 20,
-      "tdd_config": {
-        "earfcndl": 44590,
-        "special_subframe_pattern": 7,
-        "subframe_assignment": 2
-      }
-    }
-  },
-  "description": "lte_network",
-  "dns": {
-    "enable_caching": false,
-    "local_ttl": 0
-  },
-  "features": {
-    "features": {
-      "placeholder": "true"
-    }
-  },
-  "id": "lte_network",
-  "name": "lte_network"
-}'
-```
 
-Get a generic network description:
-```shell
-alias scurl='curl --cacert certs/rootCA.pem --cert certs/admin_operator.pem --key certs/admin_operator.key.pem'
-scurl -X 'GET' \
-  'https://api.lte.int/magma/v1/networks/custom' \
-  -H 'accept: application/json'
+terraform apply ${terraform_opts} \
+    -var "bootstrapper=${bootstrapper}" \
+    -var "api=${api}" \
+    -var "controller=${controller}" \
+    -var "fluentd=${fluentd}" \
+    -var "kibana=${kibana}" \
+    -var "nms=${nms}" `cat terraform_opts`
 ```
 
 
-
-
-And delete the ubuntu instance:
-```shell
-terraform destroy \
-  -var "oam_network=lb" \
-  -var "oam_subnet=lb" \
-  -var "s1_network=clabext01" \
-  -var "s1_subnet=clabext01_ipv4" \
-  -var "key_pair_file=/home/eduardoefb/.ssh/id_rsa.pub" \
-  -var "image=ubuntu_20.04" \
-  --auto-approve
-```
-
-mkdir -p /var/opt/magma/configs
-cat << EOF > /var/opt/magma/configs/control_proxy.yml
-cloud_address: controller.lte.int
-cloud_port: 443
-bootstrap_address: bootstrapper-controller.lte.int
-bootstrap_port: 443
-fluentd_address: fluentd.lte.int
-fluentd_port: 24224
-rootca_cert: /var/opt/magma/tmp/certs/rootCA.pem
-EOF
-
-
-cat << EOF >> /etc/hosts
-10.8.0.49 controller.lte.int
-10.8.0.34 bootstrapper-controller.lte.int
-10.8.0.42 fluentd.lte.int
-EOF
-
-mkdir -p /var/opt/magma/tmp/certs/            
-cat << EOF > /var/opt/magma/tmp/certs/rootCA.pem          
------BEGIN CERTIFICATE-----
-MIIDLTCCAhWgAwIBAgIUeWjNwa4P2XIVZ9iWpPOFlbDnl8wwDQYJKoZIhvcNAQEL
-BQAwJjELMAkGA1UEBhMCVVMxFzAVBgNVBAMMDnJvb3RjYS5sdGUuaW50MB4XDTIz
-MDUzMDE0MTIzOFoXDTMzMDUyNzE0MTIzOFowJjELMAkGA1UEBhMCVVMxFzAVBgNV
-BAMMDnJvb3RjYS5sdGUuaW50MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
-AQEA9Qmh2oIxyUEdvPvZ1o+XQ8EqSYctN5i9X35Ii573A673Kqlb3aWeoyatyJns
-XIDQNkI6Y02R/xF7XTD7sLnyB+v51JGH9CuqI47Emodkweo/ykyAgloLDH8iQDKC
-dS6Jv7aWpQcmTsrtdH0Pd305uQQ9tem9Zg3LtK39qYw79ViYulnZ1UrKvDdZug5W
-zOHLRkLeSqMXtB3abJkk27z47dDpXZ66smgwBUNAd3M7uWDM0UTpaLhyDRi5AlCM
-WyfaUHlY+zuXnfGDQ0kpdtdYHzDHuBlVnM6a3GopE81Twng8dwgrwPI2IuXqUtrW
-hfobjdPo5h90xKjDEk0SqzfkzwIDAQABo1MwUTAdBgNVHQ4EFgQUeNuhAr2r80N3
-PVvCb4XBImZdZAIwHwYDVR0jBBgwFoAUeNuhAr2r80N3PVvCb4XBImZdZAIwDwYD
-VR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAoCAPpIZQpUecOdiRXe/h
-ivAvRz9JSYWpX+Khr453nJ8fMIUNuKzM8w1Wx1q3+y/9g+3jdmIgDwJUrBrSMygL
-4PqEwvRWPHJ2AzYckQnzcUsp8/WW9F/+9ecEgDwsgVydLa88CUp9jKDqafTbAIoK
-owGWx/8vEiOGrH8mfFhuCdgdwUXahYPzQHi/iO+n3SSIpnaB+hEu2IPrUEQTDJhR
-WgPPbMVXz3XcHgmUxbEMKR++Ya1NI/EzhC5y1PP157htbhWaJPW3m3A/nPYcdrQR
-pOxJhVfeNwKlJplPLOdnOgv6pcAykJVcXiGg/l2/YhvESiL/zr+tTU9L7+RoVF3y
-bg==
------END CERTIFICATE-----
-EOF
-
-
-
-show_gateway_info.py
-
-sudo service magma@* stop
-sudo service magma@magmad restart
-journalctl -u magma@magmad -f
-
-```
-
-
-To destroy:
-```shell
-terraform destroy \
-  -var "oam_network=lb" \
-  -var "oam_subnet=lb" \
-  -var "s1_network=clabext01" \
-  -var "s1_subnet=clabext01_ipv4" \
-  -var "key_pair_file=/home/eduardoefb/.ssh/id_rsa.pub" \
-  --auto-approve
-```

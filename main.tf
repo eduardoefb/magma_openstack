@@ -76,6 +76,14 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_tcp" {
   security_group_id = "${openstack_networking_secgroup_v2.k8s_secgroup.id}"
 }
 
+resource "openstack_networking_secgroup_rule_v2" "secgroup_rule_icmp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "icmp"
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = "${openstack_networking_secgroup_v2.k8s_secgroup.id}"
+}
+
 resource "openstack_networking_secgroup_rule_v2" "k8s_udp" {
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -100,8 +108,8 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_sctp" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "sctp"
-  port_range_min    = "38412"
-  port_range_max    = "38412"
+  port_range_min    = "36412"
+  port_range_max    = "36412"
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = "${openstack_networking_secgroup_v2.k8s_secgroup.id}"
 }
@@ -110,8 +118,8 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_sctp2" {
   direction         = "egress"
   ethertype         = "IPv4"
   protocol          = "sctp"
-  port_range_min    = "38412"
-  port_range_max    = "38412"
+  port_range_min    = "36412"
+  port_range_max    = "36412"
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = "${openstack_networking_secgroup_v2.k8s_secgroup.id}"
 }
@@ -167,11 +175,93 @@ resource "openstack_dns_zone_v2" "zone" {
 resource "openstack_dns_recordset_v2" "bastian" {
   zone_id     = openstack_dns_zone_v2.zone.id
   name        = "${openstack_compute_instance_v2.bastian.name}.${var.environment.domain}"
-  description = "Recordset k8s"
+  description = "Recordset bastian"
+  ttl         = 3000
+  type        = "A"  
+  records     = [ openstack_networking_floatingip_v2.bastian_floating_ip.address ]
+}
+
+
+# Magma dns entries
+resource "openstack_dns_recordset_v2" "bootstrapper-controller" {
+  zone_id     = openstack_dns_zone_v2.zone.id
+  name        = "bootstrapper-controller.${var.environment.domain}"
+  description = "bootstrapper"
   ttl         = 3000
   type        = "A"
-  #records     = [ openstack_compute_instance_v2.bastian.access_ip_v4 ]
-  records     = [ openstack_networking_floatingip_v2.bastian_floating_ip.address ]
+  records     = [ "${var.bootstrapper}" ]
+
+}
+
+resource "openstack_dns_recordset_v2" "api" {
+  zone_id     = openstack_dns_zone_v2.zone.id
+  name        = "api.${var.environment.domain}"
+  description = "api"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.api}" ]
+
+}
+
+resource "openstack_dns_recordset_v2" "controller" {
+  zone_id     = openstack_dns_zone_v2.zone.id
+  name        = "controller.${var.environment.domain}"
+  description = "controller"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.controller}" ]
+
+
+}
+
+resource "openstack_dns_recordset_v2" "nms" {
+  zone_id     = openstack_dns_zone_v2.zone.id
+  name        = "*.nms.${var.environment.domain}"
+  description = "nms"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.nms}" ]
+
+}
+
+resource "openstack_dns_recordset_v2" "nms_host" {
+  zone_id     = openstack_dns_zone_v2.zone.id
+  name        = "host.nms.${var.environment.domain}"
+  description = "nms"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.nms}" ]
+
+}
+
+resource "openstack_dns_recordset_v2" "nms_custom" {
+  zone_id     = openstack_dns_zone_v2.zone.id
+  name        = "custom.nms.${var.environment.domain}"
+  description = "nms"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.nms}" ]
+
+}
+
+resource "openstack_dns_recordset_v2" "fluentd" {
+  zone_id     = openstack_dns_zone_v2.zone.id
+  name        = "fluentd.${var.environment.domain}"
+  description = "fluentd"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.fluentd}" ]
+
+}
+
+resource "openstack_dns_recordset_v2" "kibana" {
+  zone_id     = openstack_dns_zone_v2.zone.id
+  name        = "kibana.${var.environment.domain}"
+  description = "kibana"
+  ttl         = 3000
+  type        = "A"
+  records     = [ "${var.kibana}" ]
+
 }
 
 
@@ -215,8 +305,8 @@ resource "openstack_networking_secgroup_rule_v2" "agw_sctp" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "sctp"
-  port_range_min    = "38412"
-  port_range_max    = "38412"
+  port_range_min    = "36412"
+  port_range_max    = "36412"
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = "${openstack_networking_secgroup_v2.agw_secgroup.id}"
 }
@@ -225,8 +315,8 @@ resource "openstack_networking_secgroup_rule_v2" "agw_sctp2" {
   direction         = "egress"
   ethertype         = "IPv4"
   protocol          = "sctp"
-  port_range_min    = "38412"
-  port_range_max    = "38412"
+  port_range_min    = "36412"
+  port_range_max    = "36412"
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = "${openstack_networking_secgroup_v2.agw_secgroup.id}"
 }
@@ -247,18 +337,6 @@ data openstack_networking_subnet_v2 s1_subnet {
     name = var.environment.s1_subnet
 }
 
-resource "openstack_networking_port_v2" "port" {
-  
-  name           = "agw_s1_port"
-  network_id     = "${data.openstack_networking_network_v2.s1_network.id}"
-  admin_state_up = "true"
-
-  fixed_ip {
-    ip_address = var.environment.s1_agw_ip
-    subnet_id = data.openstack_networking_subnet_v2.s1_subnet.id
-  }  
-
-}
 
 resource "openstack_compute_instance_v2" "agw" {
   name            = "${var.environment.prefix}-agw01"
@@ -275,7 +353,7 @@ resource "openstack_compute_instance_v2" "agw" {
 
   # S1 network
   network {
-    port   = openstack_networking_port_v2.port.id
+    name = data.openstack_networking_network_v2.s1_network.name
   }
 
   depends_on = [
@@ -301,6 +379,157 @@ resource "openstack_compute_floatingip_associate_v2" "agw_floating_ip_associate"
 }
 
 
+########################################################################################################
+# G/E nodeb 
+########################################################################################################
+
+resource "openstack_networking_secgroup_v2" "gnodeb_secgroup" {
+  count       = var.create_ran ? 1:0
+  name        = "gnodeb_secgroup"
+  description = "Security group for gnodeb"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "gnodeb_tcp" {
+  count             = var.create_ran ? 1:0
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 22
+  port_range_max    = 65535
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "gnodeb_udp" {
+  count             = var.create_ran ? 1:0
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 22
+  port_range_max    = 65535
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "gnodeb_udp_out" {
+  count             = var.create_ran ? 1:0
+  direction         = "egress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 22
+  port_range_max    = 65535
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "gnodeb_sctp" {
+  count             = var.create_ran ? 1:0
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "sctp"
+  port_range_min    = "36412"
+  port_range_max    = "36412"
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "gnodeb_sctp2" {
+  count             = var.create_ran ? 1:0
+  direction         = "egress"
+  ethertype         = "IPv4"
+  protocol          = "sctp"
+  port_range_min    = "36412"
+  port_range_max    = "36412"
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+}
+
+
+resource "openstack_compute_instance_v2" "gnodeb" {
+  count           = var.create_ran ? 1:0
+  name            = "${var.environment.prefix}-gnodeb01"
+  flavor_name     = var.environment.gnodeb_flavor
+  image_name      = "${var.environment.gnodeb_image}"
+  key_pair        = openstack_compute_keypair_v2.keypair.name
+  availability_zone = var.environment.gnodeb_az
+  security_groups = [ openstack_networking_secgroup_v2.gnodeb_secgroup.0.name ]
+
+  # OAM Network
+  network {
+    name = openstack_networking_network_v2.network.name
+  }
+
+  # S1 network
+  network {
+    name = data.openstack_networking_network_v2.s1_network.name
+  }
+
+  depends_on = [
+    openstack_networking_secgroup_v2.agw_secgroup,
+    openstack_networking_network_v2.network,
+    openstack_networking_subnet_v2.subnet,
+    openstack_networking_router_interface_v2.router_interface_01    
+  ]
+}
+
+# Create a list of floating IPs
+resource "openstack_networking_floatingip_v2" "gnodeb_floating_ip" {
+  count         = var.create_ran ? 1:0
+  pool          = var.environment.external_network
+  subnet_id     = data.openstack_networking_subnet_v2.ext_sub_net.id
+}
+
+# Associate floating IPs with instances
+resource "openstack_compute_floatingip_associate_v2" "gnodeb_floating_ip_associate" {
+  count           = var.create_ran ? 1:0
+  floating_ip     = openstack_networking_floatingip_v2.gnodeb_floating_ip.0.address
+  fixed_ip        = openstack_compute_instance_v2.gnodeb.0.network.0.fixed_ip_v4
+  instance_id     = openstack_compute_instance_v2.gnodeb.0.id
+  depends_on      = [openstack_compute_instance_v2.gnodeb, openstack_networking_floatingip_v2.gnodeb_floating_ip]
+}
+
+########################################################################################################
+# UE
+########################################################################################################
+
+resource "openstack_compute_instance_v2" "ue" {
+  count             = var.create_ran ? 1:0
+  name              = "${var.environment.prefix}-ue01"
+  flavor_name       = var.environment.ue_flavor
+  image_name        = "${var.environment.ue_image}"
+  key_pair          = openstack_compute_keypair_v2.keypair.name
+  availability_zone = var.environment.ue_az
+  security_groups   = [ openstack_networking_secgroup_v2.gnodeb_secgroup.0.name ]
+
+  # OAM Network
+  network {
+    name = openstack_networking_network_v2.network.name
+  }
+
+  depends_on = [
+    openstack_networking_secgroup_v2.agw_secgroup,
+    openstack_networking_network_v2.network,
+    openstack_networking_subnet_v2.subnet,
+    openstack_networking_router_interface_v2.router_interface_01    
+  ]
+}
+
+# Create a list of floating IPs
+resource "openstack_networking_floatingip_v2" "ue_floating_ip" {
+  count       = var.create_ran ? 1:0
+  pool        = var.environment.external_network
+  subnet_id   = data.openstack_networking_subnet_v2.ext_sub_net.id
+}
+
+# Associate floating IPs with instances
+resource "openstack_compute_floatingip_associate_v2" "ue_floating_ip_associate" {
+  count           = var.create_ran ? 1:0
+  floating_ip     = openstack_networking_floatingip_v2.ue_floating_ip.0.address
+  fixed_ip        = openstack_compute_instance_v2.ue.0.network.0.fixed_ip_v4
+  instance_id     = openstack_compute_instance_v2.ue.0.id
+  depends_on      = [openstack_compute_instance_v2.ue, openstack_networking_floatingip_v2.ue_floating_ip]
+}
+
 
 #########################################################################################################
 # Output:
@@ -316,6 +545,19 @@ resource "local_file" "agw" {
   filename = "agw.txt"
   content  = "${openstack_compute_instance_v2.agw.id} ${openstack_compute_instance_v2.agw.name} ${openstack_compute_instance_v2.agw.access_ip_v4}"
 }
+
+resource "local_file" "gnodeb" {
+  count    = var.create_ran ? 1:0
+  filename = "gnodeb.txt"
+  content  = "${openstack_compute_instance_v2.gnodeb.0.id} ${openstack_compute_instance_v2.gnodeb.0.name} ${openstack_compute_instance_v2.gnodeb.0.access_ip_v4}"
+}
+
+resource "local_file" "ue" {
+  count     = var.create_ran ? 1:0
+  filename  = "ue.txt"
+  content   = "${openstack_compute_instance_v2.ue.0.id} ${openstack_compute_instance_v2.ue.0.name} ${openstack_compute_instance_v2.ue.0.access_ip_v4}"
+}
+
 
 resource "local_file" "domain"{
   filename = "domain.txt"
@@ -336,3 +578,20 @@ resource "local_file" "internal_subnet_id" {
   content  = "${openstack_networking_subnet_v2.subnet.id}"
   filename = "internal_subnet_id.txt"
 }
+
+resource "local_file" "agw_s1_ip"{
+  content = "${openstack_compute_instance_v2.agw.network.1.fixed_ip_v4}"
+  filename = "agw_s1_ip.txt"
+}
+
+resource "local_file" "gnodeb_s1_ip"{
+  count     = var.create_ran ? 1:0
+  content   = "${openstack_compute_instance_v2.gnodeb.0.network.1.fixed_ip_v4}"
+  filename  = "gnodeb_s1_ip.txt"
+}
+
+resource "local_file" "agw_s1_subnet"{
+  content   = "${var.environment.s1_subnet}"
+  filename  = "agw_s1_subnet.txt"
+}
+
