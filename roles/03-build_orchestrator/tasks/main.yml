@@ -14,7 +14,7 @@
     dest: /home/debian/magma
     version: "{{ branch }}"
   register: git_res
-  retries: 80
+  retries: 10
   delay: 5
   until: git_res is success     
 

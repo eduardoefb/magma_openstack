@@ -53,7 +53,7 @@
     dest: /home/debian/magma
     version: "{{ branch }}"
   register: git_res
-  retries: 80
+  retries: 10
   delay: 5
   until: git_res is success       
 
@@ -264,10 +264,18 @@
     - prometheus-data
     - prometheus-config
 
+- name: Copy fluentd config
+  copy:
+    src: fluentd-forward.configmap.yaml
+    dest: /home/debian/magma/orc8r/cloud/helm/orc8r/charts/logging/templates/fluentd-forward.configmap.yaml
+    
 - name: Deploy orc8r
   shell: | 
     cd /home/debian/magma/orc8r/cloud/helm/orc8r
+    #sed -i "s|'fluentd'}|'eventd'}|g" charts/logging/templates/fluentd-forward.configmap.yaml
+    #sed -i "s|'fluentd'}|'eventd'}|g" charts/logging/templates/fluentd-daemon.configmap.yaml
     for f in `grep -lr -i 'policy/v1beta1'  *`; do sed -i 's|policy/v1beta1|policy/v1|g' $f; done
+    sed -i 's/listen 443;/listen 443 ssl;/g; /ssl on;/d' charts/nms/templates/etc/_nginx_proxy_ssl.conf.tpl
     helm dep update
     helm install {{ prefix }} --namespace {{ namespace }} . --values=/home/debian/values.yaml --wait --timeout 3600s
   args:

@@ -339,7 +339,7 @@ data openstack_networking_subnet_v2 s1_subnet {
 
 
 resource "openstack_compute_instance_v2" "agw" {
-  name            = "${var.environment.prefix}-agw01"
+  name            = "${var.environment.prefix}-agw01"  
   flavor_name     = var.environment.agw_flavor
   image_name      = "${var.environment.agw_image}"
   key_pair        = openstack_compute_keypair_v2.keypair.name

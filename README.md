@@ -153,7 +153,7 @@ nms=`kubectl -n ${namespace} get service nginx-proxy -o=jsonpath='{.status.loadB
 fluentd=`kubectl -n ${namespace} get service orc8r-fluentd-forward -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
 kibana=`kubectl -n ${namespace} get service kibana-http-external -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
 
-
+terraform_opts=`cat terraform_opts`
 terraform apply ${terraform_opts} \
     -var "bootstrapper=${bootstrapper}" \
     -var "api=${api}" \
@@ -161,6 +161,18 @@ terraform apply ${terraform_opts} \
     -var "fluentd=${fluentd}" \
     -var "kibana=${kibana}" \
     -var "nms=${nms}" `cat terraform_opts`
+
+# To replace agw:
+
+terraform apply ${terraform_opts} \
+    -var "bootstrapper=${bootstrapper}" \
+    -var "api=${api}" \
+    -var "controller=${controller}" \
+    -var "fluentd=${fluentd}" \
+    -var "kibana=${kibana}" \
+    --replace openstack_compute_instance_v2.agw \
+    -var "nms=${nms}" `cat terraform_opts`
+   
 ```
 
 

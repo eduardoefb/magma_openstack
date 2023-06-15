@@ -51,9 +51,9 @@ sed -i '/^$/d' *.txt
 
 update_inventory
 
-if [ ! -d certs ]; then 
-    build_certificates
-fi
+#if [ ! -d certs ]; then 
+build_certificates
+#fi
 
 # Trigger agw installation
 if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ${ansible_opts} 00_trigger_agw.yml --vault-password-file <(echo "$ansible_password"); then 
