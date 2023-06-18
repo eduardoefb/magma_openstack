@@ -1,8 +1,19 @@
 ### Deploy magma on kubespray 
 
+#### Requirements:
+1) To be able to install magma using this procedure, you first need to install openstack with the following services:
+ - nova
+ - cinder
+ - neutron
+ - designator
+ - octavia
 
-#### 1 - Configuration file
-Create the configuration file `magma_config.yml` with passwords and other configurations.  Example below:
+Refere to the this [guide](https://gitlab.com/eduardoefb/openstack-ubuntu/-/tree/victoria?ref_type=heads) for references
+
+2) Kuberntes with openstack cloud provider. Refere to this [guide](https://github.com/eduardoefb/k8s-openstack-cloudprovider) for references.
+
+#### 1 - Prepare Configuration file
+Once the above requirements are satisfied, you need to create the configuration file `magma_config.yml` with passwords and other configurations.  Example below:
 
 ```yaml
 namespace: orc8r 
@@ -11,26 +22,30 @@ domain: lte.int
 c: C=BR
 cert_validity: 3650
 branch: v1.8
-kubeconfig_file: /home/magmauser/.kube/config
+kubeconfig_file: /home/kubeuser/.kube/config
 
-ca_cert: /opt/cert/regca.crt
-ca_key: /opt/cert/regca.key
+ca_cert: /home/kubeuser/k8s/certs/regca.crt
+ca_key: /home/kubeuser/k8s/certs/regca.key
 
 registry:
   url: registry.kube.int
-  username: magmauser
-  password: magmapwd123
+  username: registryuser
+  password: 5c8e61cf4733fbd22711
   project: magma
   tag: 1.8.0
 
 magma:
   admin_user: admin@magma
-  admin_pass: c2b75b163227d41d5e51
+  admin_pass: 445a494ccb2cfbd60caf
+
+  elasticsearch_volume_size: 100Gi
+  elasticsearch_version: "8.8.0"
+  prometheus_volume_size: 100Gi
 
   organizations:
     - name: custom
       admin_user: admin@custom.lte.int
-      admin_pass: a97fba00a0af6fad9881
+      admin_pass: 3124258c7eb109c27c34
   
       network:
         id: custom 
@@ -64,7 +79,7 @@ magma:
       manufacturer: "EURECOM"
       model: "LTE Android PC"
       pin: "0000"  
-      hplmn: "72417"         
+      hplmn: "72417"    
 
     - imsi: "724170000000002"
       key: "00000000000000000000000000000002"
@@ -76,8 +91,8 @@ magma:
       manufacturer: "EURECOM"
       model: "LTE Android PC"
       pin: "0000"  
-      hplmn: "72417"        
-
+      hplmn: "72417"    
+      
     - imsi: "724170000000003"
       key: "00000000000000000000000000000003"
       opc: "00000000000000000000000000000003"
@@ -87,8 +102,8 @@ magma:
       imei: "356113022094153"
       manufacturer: "EURECOM"
       model: "LTE Android PC"
-      pin: "0000"  
-      hplmn: "72417"        
+      pin: "0000" 
+      hplmn: "72417"      
 ```
 
 Then, encrypt your configuration file using ansible-vault
