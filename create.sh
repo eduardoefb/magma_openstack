@@ -49,11 +49,8 @@ terraform apply ${terraform_opts} --replace openstack_compute_instance_v2.agw --
 for f in *.txt; do echo >> $f; done
 sed -i '/^$/d' *.txt
 
-update_inventory
-
-#if [ ! -d certs ]; then 
-build_certificates
-#fi
+update_inventory ${ansible_password}
+build_certificates ${ansible_password}
 
 # Trigger agw installation
 if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ${ansible_opts} 00_trigger_agw.yml --vault-password-file <(echo "$ansible_password"); then 

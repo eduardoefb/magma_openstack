@@ -1,5 +1,5 @@
 function build_certificates(){
-
+    ansible_password=${1}
     # Copy ca files from registry:
     ftmp=`mktemp`
 
@@ -92,6 +92,7 @@ function update_inventory(){
     unset bastian_name
     unset bastian_int 
     unset bastian_ext    
+    ansible_password=${1}
 
     bastian_id=`cat bastian.txt | head -1 | awk '{print $1}'`
     agw_id=`cat agw.txt | head -1 | awk '{print $1}'`    
