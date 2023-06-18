@@ -1,9 +1,11 @@
 function build_certificates(){
     ansible_password=${1}
     # Copy ca files from registry:
+    vault_pwd_file=`mktemp`
+    echo ${ansible_password} > ${vault_pwd_file}
     ftmp=`mktemp`
 
-    ansible-vault view magma_config.yml --vault-password-file <(echo "$ansible_password") > ${ftmp}
+    ansible-vault view magma_config.yml --vault-password-file ${vault_pwd_file} > ${ftmp}
     ca_cert=`cat ${ftmp} | grep -oP '(?<=^ca_cert:\s)(.*)'`
     ca_key=`cat ${ftmp} | grep -oP '(?<=^ca_key:\s)(.*)'`
     rm ${ftmp}
@@ -29,12 +31,12 @@ function build_certificates(){
 
     # Create the certificates:
     ftmp=`mktemp`
-    ansible-vault view magma_config.yml --vault-password-file <(echo "$ansible_password") > ${ftmp}
+    ansible-vault view magma_config.yml --vault-password-file ${vault_pwd_file} > ${ftmp}
     domain=`cat ${ftmp} | grep -oP '(?<=^domain:\s)(.*)'`
     c=`cat ${ftmp} | grep -oP '(?<=^c:\s)(.*)'`
     cert_validity=`cat ${ftmp} | grep -oP '(?<=^cert_validity:\s)(.*)'`
     rm ${ftmp}
-
+    rm ${vault_pwd_file}
     # Controller:
     openssl genrsa -out certs/controller.key 2048
     openssl req -new -key certs/controller.key -out certs/controller.csr -subj "/${c}/CN=*.$domain"
