@@ -1,19 +1,26 @@
-### Deploy magma on kubespray 
+## Deploying Magma on OpenStack Environment
 
-#### Requirements:
-1) To be able to install magma using this procedure, you first need to install openstack with the following services:
- - nova
- - cinder
- - neutron
- - designator
- - octavia
+### Requirements:
+To install Magma using this procedure, make sure you have the following services installed in your OpenStack environment:
 
-Refere to the this [guide](https://gitlab.com/eduardoefb/openstack-ubuntu/-/tree/victoria?ref_type=heads) for references
+1. **OpenStack services:**
+   - Nova
+   - Cinder
+   - Neutron
+   - Designator
+   - Octavia
 
-2) Kuberntes with openstack cloud provider. Refere to this [guide](https://github.com/eduardoefb/k8s-openstack-cloudprovider) for references.
+For installation instructions, refer to the [OpenStack Ubuntu Guide](https://gitlab.com/eduardoefb/openstack-ubuntu/-/tree/victoria?ref_type=heads).
 
-#### 1 - Prepare Configuration file
-Once the above requirements are satisfied, you need to create the configuration file `magma_config.yml` with passwords and other configurations.  Example below:
+2. **Kubernetes with OpenStack Cloud Provider:**
+   To integrate Kubernetes with OpenStack, follow the steps provided in the [Kubernetes OpenStack Cloud Provider Guide](https://github.com/eduardoefb/k8s-openstack-cloudprovider).
+
+Please ensure that you have met all the requirements before proceeding with the Magma deployment.
+
+
+## 1. Prepare Configuration File
+Once the above requirements are satisfied, you need to create the configuration file `magma_config.yml` with passwords and other configurations. Example below:
+
 
 ```yaml
 namespace: orc8r 
@@ -111,82 +118,49 @@ Then, encrypt your configuration file using ansible-vault
 ansible-vault encrypt magma_config.yml
 ```
 
-#### 2 - Start the deployment:
+### 2 - Start the deployment:
+Start the `create.sh` script with the option `build`. It will build the images and upload them to the registry.
 
-Start the `create.sh` script with the option `build`. It will build the images and upload to the registry:
-Deploy:
 ```shell
 bash create.sh build orc8r agw ran
 ```
 
-
-#### 3 - Enodeb and UE:
-Once the vms are created, build enodeb/ue separatelly:
+### 3 - Enodeb and UE:
+Once the virtual machines (VMs) are created, build the enodeb/UE separately using the following command:
 ```shell
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts 05_enodeb_ue.yml --ask-vault-password
 ```
 
-#### 4 - Post installation:
-Once magma is installed, if eu and gnodeb, you can connect to the UE and check if the session is established:
+### 4 - Post installation:
+Once Magma is installed, if using UE and eNodeB, you can check if eNodeB is connected to the MME (AGW):
+
+1. Connect to the eNodeB and check the status of the `enodeb.service` status:
 ```shell
-sudo ip addr show dev oaitun_ue1
+sudo systemctl status enodeb.service
 ```
 
-Example:
-```log
-ubuntu@magma-ue01:~$ sudo ip addr show dev oaitun_ue1
-5: oaitun_ue1: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UNKNOWN group default qlen 500
-    link/none 
-    inet 192.168.128.14/24 brd 192.168.128.255 scope global oaitun_ue1
-       valid_lft forever preferred_lft forever
-    inet6 fe80::392e:f213:9a79:e993/64 scope link stable-privacy 
-       valid_lft forever preferred_lft forever
-ubuntu@magma-ue01:~$ 
-```
-
-To validate the connection, add a static route via oaitun_ue1 interface:
-
-First add a static route to your local ip address, to avoid to loss the connection with the UE:
+2. Check if the eNodeB is connected to the MME (AGW) by viewing the network connections and sockets:
 ```shell
-ip route add <your local ssh ip addr> via <original default gw>
+sudo netstat -anS
 ```
+This command will show the active network connections and open sockets, allowing you to verify the connection between the eNodeB and the MME (AGW).
 
-Than, delete the default gateway and add it to via oaitun_ue1
+3. Connect to the UE and check the status of the `ue.service`:
 ```shell
-ip route del default
-ip route add default dev  oaitun_ue1
+sudo systemctl status ue.service
 ```
+This command will display the status of the ue.service, providing information about the UE's connectivity.
 
-#### In case of network changes, execute terraform as:
+
+4. If everything is fine, move to the `ue` namespace and test the internet connection:
 ```shell
-namespace=`cat namespace.txt`
-bootstrapper=`kubectl -n ${namespace} get service bootstrapper-orc8r-nginx -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"` 
-api=`kubectl -n ${namespace} get service orc8r-nginx-proxy -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
-controller=`kubectl -n ${namespace} get service orc8r-clientcert-nginx -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
-nms=`kubectl -n ${namespace} get service nginx-proxy -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
-fluentd=`kubectl -n ${namespace} get service orc8r-fluentd-forward -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
-kibana=`kubectl -n ${namespace} get service kibana-http-external -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "0.0.0.0"`
-
-terraform_opts=`cat terraform_opts`
-terraform apply ${terraform_opts} \
-    -var "bootstrapper=${bootstrapper}" \
-    -var "api=${api}" \
-    -var "controller=${controller}" \
-    -var "fluentd=${fluentd}" \
-    -var "kibana=${kibana}" \
-    -var "nms=${nms}" `cat terraform_opts`
-
-# To replace agw:
-
-terraform apply ${terraform_opts} \
-    -var "bootstrapper=${bootstrapper}" \
-    -var "api=${api}" \
-    -var "controller=${controller}" \
-    -var "fluentd=${fluentd}" \
-    -var "kibana=${kibana}" \
-    --replace openstack_compute_instance_v2.agw \
-    -var "nms=${nms}" `cat terraform_opts`
-   
+sudo su - 
+ip netns exec ue bash
+ping 8.8.8.8
 ```
+
+These commands will allow you to enter the ue namespace and test the internet connection by pinging the IP address 8.8.8.8.
+
+Make sure to execute these steps after completing the Magma installation to ensure the proper connection between the eNodeB, MME (AGW), and UE.
 
 
