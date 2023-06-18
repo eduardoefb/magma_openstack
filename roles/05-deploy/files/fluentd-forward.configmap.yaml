@@ -1,0 +1,99 @@
+{{/*
+Copyright 2020 The Magma Authors.
+
+This source code is licensed under the BSD-style license found in the
+LICENSE file in the root directory of this source tree.
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-fluentd-forward-configs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+data:
+  forward.conf: |-
+    <source>
+      @type forward
+      port {{ .Values.fluentd_forward.service.targetPort }}
+      bind 0.0.0.0
+
+      <transport tls>
+        cert_path /var/opt/magma/certs/fluentd.pem
+        private_key_path /var/opt/magma/certs/fluentd.key
+
+        client_cert_auth true
+        ca_path /var/opt/magma/certs/certifier.pem
+      </transport>
+    </source>
+
+  output.conf: |-
+    <match eventd>
+      @type copy
+      <store>
+        @type elasticsearch
+        host "#{ENV['FLUENT_ELASTICSEARCH_HOST']}"
+        port "#{ENV['FLUENT_ELASTICSEARCH_PORT']}"
+        logstash_format true
+        logstash_prefix eventd
+        include_tag_key true
+        tag_key tag
+        flush_interval 1s
+      </store>
+      <store>
+        @type stdout
+      </store>
+    </match>
+
+    <match *.**>
+      @type copy
+      <store>
+        @type elasticsearch
+        host "#{ENV['FLUENT_ELASTICSEARCH_HOST']}"
+        port "#{ENV['FLUENT_ELASTICSEARCH_PORT']}"
+        logstash_format true
+        logstash_prefix fluentd
+        include_tag_key true
+        tag_key tag
+        flush_interval 1s
+      </store>
+      <store>
+        @type stdout
+      </store>
+    </match>
+  
+
+{{ if .Values.fluentd_forward.dp_output }}
+  dp-output.conf: |-
+    <match dp>
+      @type copy
+      <store>
+        @type elasticsearch
+        host "#{ENV['FLUENT_ELASTICSEARCH_HOST']}"
+        port "#{ENV['FLUENT_ELASTICSEARCH_PORT']}"
+        logstash_format true
+        logstash_prefix dp
+        include_tag_key true
+        tag_key tag
+        flush_interval 1s
+      </store>
+      <store>
+        @type stdout
+      </store>
+    </match>
+{{ end }}
+
+  fluent.conf: |-
+    @include /fluentd/etc/forward.conf
+{{- if .Values.fluentd_forward.dp_output }}
+    @include /fluentd/etc/dp-output.conf
+{{- end }}
+    @include /fluentd/etc/output.conf
+
