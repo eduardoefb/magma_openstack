@@ -98,25 +98,22 @@ function update_inventory(){
 
     bastian_id=`cat bastian.txt | head -1 | awk '{print $1}'`
     agw_id=`cat agw.txt | head -1 | awk '{print $1}'`    
-    addr_line_bastian=`openstack server show ${bastian_id} -f value -c addresses`
-    addr_line_agw=`openstack server show ${agw_id} -f value -c addresses`
-    bastian_int=$(awk -F \' '{print $4}' <<< ${addr_line_bastian})
-    bastian_ext=$(awk -F \' '{print $6}' <<< ${addr_line_bastian})
-    agw_int=$(awk -F \' '{print $4}' <<< ${addr_line_agw})
-    agw_ext=$(awk -F \' '{print $6}' <<< ${addr_line_agw})
+        
+    bastian_int=`cat bastian.txt  | awk '{print $NF}'`
+    bastian_ext=`cat bastian_floating_ip.txt`
+    agw_int=`cat agw.txt  | awk '{print $NF}'`
+    agw_ext=`cat agw_floating_ip.txt`
 
     if [ -f enodeb.txt ]; then
-        enodeb_id=`cat enodeb.txt | head -1 | awk '{print $1}'`
-        addr_line_enodeb=`openstack server show ${enodeb_id} -f value -c addresses`
-        enodeb_int=$(awk -F \' '{print $4}' <<< ${addr_line_enodeb})
-        enodeb_ext=$(awk -F \' '{print $6}' <<< ${addr_line_enodeb})   
+        enodeb_id=`cat enodeb.txt | head -1 | awk '{print $1}'`        
+        enodeb_int=`cat enodeb.txt  | awk '{print $NF}'`
+        enodeb_ext=`cat enodeb_floating_ip.txt`  
     fi 
     
     if [ -f ue.txt ]; then
-        ue_id=`cat ue.txt | head -1 | awk '{print $1}'`
-        addr_line_ue=`openstack server show ${ue_id} -f value -c addresses`
-        ue_int=$(awk -F \' '{print $4}' <<< ${addr_line_ue})
-        ue_ext=$(awk -F \' '{print $6}' <<< ${addr_line_ue})   
+        ue_id=`cat ue.txt | head -1 | awk '{print $1}'`        
+        ue_int=`cat ue.txt  | awk '{print $NF}'`
+        ue_ext=`cat ue_floating_ip.txt` 
     fi 
 
     echo "[BASTIAN]" >> hosts    
@@ -209,7 +206,7 @@ function update_inventory(){
     echo >> vars.yml
     echo "internal_subnet_id: `cat internal_subnet_id.txt`" >> vars.yml
     s1_subnet=`head -1 agw_s1_subnet.txt`
-    s1_subnet_cidr=`openstack subnet show ${s1_subnet} -f value -c cidr`
+    s1_subnet_cidr=`cat s1_subnet_cidr.txt`
     echo "s1_subnet_cidr: ${s1_subnet_cidr}" >> vars.yml
 
     if [ -f agw_s1_ip.txt ]; then 

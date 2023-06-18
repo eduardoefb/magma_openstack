@@ -55,21 +55,23 @@ build_certificates ${ansible_password}
 
 vault_pwd_file=`mktemp`
 echo ${ansible_password} > ${vault_pwd_file}
-sleep 30 && rm ${vault_pwd_file}&
 
 # Trigger agw installation
 if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ${ansible_opts} 00_trigger_agw.yml --vault-password-file ${vault_pwd_file}; then 
+    rm ${vault_pwd_file}
     exit 1
 fi
+rm ${vault_pwd_file}
 
 vault_pwd_file=`mktemp`
 echo ${ansible_password} > ${vault_pwd_file}
-sleep 30 && rm ${vault_pwd_file}&
 
 # Start orc8r installation
 if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ${ansible_opts} 01_deploy_orc8r.yml --vault-password-file ${vault_pwd_file}; then 
+    rm ${vault_pwd_file}
     exit 1
 fi
+rm ${vault_pwd_file}
 
 # DNS entries
 
@@ -101,29 +103,28 @@ update_inventory
 # After orc8r installation, continue with agw
 vault_pwd_file=`mktemp`
 echo ${ansible_password} > ${vault_pwd_file}
-sleep 10 && rm ${vault_pwd_file}&
 
 if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ${ansible_opts} 02_continue_agw.yml --vault-password-file ${vault_pwd_file}; then 
+    ${vault_pwd_file}
     exit 1
 fi
+${vault_pwd_file}
 
 # create organizations
 vault_pwd_file=`mktemp`
 echo ${ansible_password} > ${vault_pwd_file}
-sleep 10 && rm ${vault_pwd_file}&
-
 if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ${ansible_opts} 03_organization.yml --vault-password-file ${vault_pwd_file}; then 
+    rm ${vault_pwd_file}
     exit 1
 fi
+rm ${vault_pwd_file}
 
 # Integrate agw
 vault_pwd_file=`mktemp`
 echo ${ansible_password} > ${vault_pwd_file}
-sleep 10 && rm ${vault_pwd_file}&
-
 if ! ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ${ansible_opts} 04_integrate_agw.yml --vault-password-file ${vault_pwd_file}; then 
+    rm ${vault_pwd_file}
     exit 1
 fi
-
-
+rm ${vault_pwd_file}
 

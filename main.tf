@@ -535,7 +535,28 @@ resource "openstack_compute_floatingip_associate_v2" "ue_floating_ip_associate" 
 # Output:
 #########################################################################################################
 
+## Floating ips:
+resource "local_file" "bastian_floating_ip" {
+  filename = "bastian_floating_ip.txt"
+  content  = "${openstack_networking_floatingip_v2.bastian_floating_ip.address}"
+}
 
+resource "local_file" "agw_floating_ip" {
+  filename = "agw_floating_ip.txt"
+  content  = "${openstack_networking_floatingip_v2.agw_floating_ip.address}"
+}
+
+resource "local_file" "enodeb_floating_ip" {
+  filename = "enodeb_floating_ip.txt"
+  content  = "${openstack_networking_floatingip_v2.enodeb_floating_ip.0.address}"
+}
+
+resource "local_file" "ue_floating_ip" {
+  filename = "ue_floating_ip.txt"
+  content  = "${openstack_networking_floatingip_v2.ue_floating_ip.0.address}"
+}
+
+#### Instances
 resource "local_file" "bastian" {
   filename = "bastian.txt"
   content  = "${openstack_compute_instance_v2.bastian.id} ${openstack_compute_instance_v2.bastian.name} ${openstack_compute_instance_v2.bastian.access_ip_v4}"
@@ -593,5 +614,11 @@ resource "local_file" "enodeb_s1_ip"{
 resource "local_file" "agw_s1_subnet"{
   content   = "${var.environment.s1_subnet}"
   filename  = "agw_s1_subnet.txt"
+}
+
+
+resource "local_file" "s1_subnet_cidr"{
+  content   = "${data.openstack_networking_subnet_v2.s1_subnet.cidr}"
+  filename  = "s1_subnet_cidr.txt"
 }
 
