@@ -73,18 +73,29 @@
 
 - name: Install Elasticsearch
   shell: |
+    storageclass=`kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
     cat <<EOF | kubectl -n {{ namespace }} apply -f -
     apiVersion: elasticsearch.k8s.elastic.co/v1
     kind: Elasticsearch
     metadata:
       name: {{ prefix }}
     spec:
-      version: 8.8.0
+      version: {{ magma.elasticsearch_version }}
       nodeSets:
       - name: default
         count: 1
         config:
           node.store.allow_mmap: false
+        volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data 
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: {{ magma.elasticsearch_volume_size }}      
+            storageClassName: ${storageclass}                  
     EOF
 
 - name: Wait for Elasticsearch
@@ -101,7 +112,7 @@
     metadata:
       name: {{ prefix }}
     spec:
-      version: 8.8.0
+      version: {{ magma.elasticsearch_version }}
       count: 1
       elasticsearchRef:
         name: {{ prefix }}
@@ -116,6 +127,7 @@
 
 - name: Disable Elasticsearch ssl and authentication
   shell: |
+    storageclass=`kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
     kubectl patch -n {{ namespace }} elasticsearch orc8r --type merge -p '{"spec": {"http": {"tls": {"selfSignedCertificate": {"disabled": true}}}}}'  
 
     cat << EOF > /tmp/patch.yml
@@ -127,7 +139,17 @@
             anonymous:
               authz_exception: false
               roles: superuser
-              username: anonymous      
+              username: anonymous  
+        volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data 
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: {{ magma.elasticsearch_volume_size }}      
+            storageClassName: ${storageclass}                    
         count: 1
         name: default
     EOF
@@ -257,7 +279,7 @@
         - ReadWriteOnce
       resources:
         requests:
-          storage: 5Gi
+          storage: {{ magma.prometheus_volume_size }}
       storageClassName: ${storageclass}
     EOF
   loop:

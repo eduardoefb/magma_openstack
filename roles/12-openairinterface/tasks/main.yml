@@ -38,6 +38,11 @@
       - cmake 
       - build-essential
       - git
+    update_cache: yes
+  register: apt_res
+  retries: 300
+  delay: 10
+  until: apt_res is success       
 
 - name: Install Mako and NumPy using pip
   pip:
@@ -45,18 +50,6 @@
       - mako
       - numpy
     executable: pip3
-
-- name: Configure Git user
-  git_config:
-    scope: global
-    name: user.name
-    value: "Laurent"
-
-- name: Configure Git email
-  git_config:
-    scope: global
-    name: user.email
-    value: "laurent.thomas@open-cells.com"
 
 - name: Check if deploy finished file exists
   stat:

@@ -380,16 +380,16 @@ resource "openstack_compute_floatingip_associate_v2" "agw_floating_ip_associate"
 
 
 ########################################################################################################
-# G/E nodeb 
+# Enodeb 
 ########################################################################################################
 
-resource "openstack_networking_secgroup_v2" "gnodeb_secgroup" {
+resource "openstack_networking_secgroup_v2" "enodeb_secgroup" {
   count       = var.create_ran ? 1:0
-  name        = "gnodeb_secgroup"
-  description = "Security group for gnodeb"
+  name        = "enodeb_secgroup"
+  description = "Security group for enodeb"
 }
 
-resource "openstack_networking_secgroup_rule_v2" "gnodeb_tcp" {
+resource "openstack_networking_secgroup_rule_v2" "enodeb_tcp" {
   count             = var.create_ran ? 1:0
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -397,10 +397,10 @@ resource "openstack_networking_secgroup_rule_v2" "gnodeb_tcp" {
   port_range_min    = 22
   port_range_max    = 65535
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+  security_group_id = "${openstack_networking_secgroup_v2.enodeb_secgroup.0.id}"
 }
 
-resource "openstack_networking_secgroup_rule_v2" "gnodeb_udp" {
+resource "openstack_networking_secgroup_rule_v2" "enodeb_udp" {
   count             = var.create_ran ? 1:0
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -408,10 +408,10 @@ resource "openstack_networking_secgroup_rule_v2" "gnodeb_udp" {
   port_range_min    = 22
   port_range_max    = 65535
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+  security_group_id = "${openstack_networking_secgroup_v2.enodeb_secgroup.0.id}"
 }
 
-resource "openstack_networking_secgroup_rule_v2" "gnodeb_udp_out" {
+resource "openstack_networking_secgroup_rule_v2" "enodeb_udp_out" {
   count             = var.create_ran ? 1:0
   direction         = "egress"
   ethertype         = "IPv4"
@@ -419,10 +419,10 @@ resource "openstack_networking_secgroup_rule_v2" "gnodeb_udp_out" {
   port_range_min    = 22
   port_range_max    = 65535
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+  security_group_id = "${openstack_networking_secgroup_v2.enodeb_secgroup.0.id}"
 }
 
-resource "openstack_networking_secgroup_rule_v2" "gnodeb_sctp" {
+resource "openstack_networking_secgroup_rule_v2" "enodeb_sctp" {
   count             = var.create_ran ? 1:0
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -430,10 +430,10 @@ resource "openstack_networking_secgroup_rule_v2" "gnodeb_sctp" {
   port_range_min    = "36412"
   port_range_max    = "36412"
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+  security_group_id = "${openstack_networking_secgroup_v2.enodeb_secgroup.0.id}"
 }
 
-resource "openstack_networking_secgroup_rule_v2" "gnodeb_sctp2" {
+resource "openstack_networking_secgroup_rule_v2" "enodeb_sctp2" {
   count             = var.create_ran ? 1:0
   direction         = "egress"
   ethertype         = "IPv4"
@@ -441,18 +441,18 @@ resource "openstack_networking_secgroup_rule_v2" "gnodeb_sctp2" {
   port_range_min    = "36412"
   port_range_max    = "36412"
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = "${openstack_networking_secgroup_v2.gnodeb_secgroup.0.id}"
+  security_group_id = "${openstack_networking_secgroup_v2.enodeb_secgroup.0.id}"
 }
 
 
-resource "openstack_compute_instance_v2" "gnodeb" {
+resource "openstack_compute_instance_v2" "enodeb" {
   count           = var.create_ran ? 1:0
-  name            = "${var.environment.prefix}-gnodeb01"
-  flavor_name     = var.environment.gnodeb_flavor
-  image_name      = "${var.environment.gnodeb_image}"
+  name            = "${var.environment.prefix}-enodeb01"
+  flavor_name     = var.environment.enodeb_flavor
+  image_name      = "${var.environment.enodeb_image}"
   key_pair        = openstack_compute_keypair_v2.keypair.name
-  availability_zone = var.environment.gnodeb_az
-  security_groups = [ openstack_networking_secgroup_v2.gnodeb_secgroup.0.name ]
+  availability_zone = var.environment.enodeb_az
+  security_groups = [ openstack_networking_secgroup_v2.enodeb_secgroup.0.name ]
 
   # OAM Network
   network {
@@ -473,19 +473,19 @@ resource "openstack_compute_instance_v2" "gnodeb" {
 }
 
 # Create a list of floating IPs
-resource "openstack_networking_floatingip_v2" "gnodeb_floating_ip" {
+resource "openstack_networking_floatingip_v2" "enodeb_floating_ip" {
   count         = var.create_ran ? 1:0
   pool          = var.environment.external_network
   subnet_id     = data.openstack_networking_subnet_v2.ext_sub_net.id
 }
 
 # Associate floating IPs with instances
-resource "openstack_compute_floatingip_associate_v2" "gnodeb_floating_ip_associate" {
+resource "openstack_compute_floatingip_associate_v2" "enodeb_floating_ip_associate" {
   count           = var.create_ran ? 1:0
-  floating_ip     = openstack_networking_floatingip_v2.gnodeb_floating_ip.0.address
-  fixed_ip        = openstack_compute_instance_v2.gnodeb.0.network.0.fixed_ip_v4
-  instance_id     = openstack_compute_instance_v2.gnodeb.0.id
-  depends_on      = [openstack_compute_instance_v2.gnodeb, openstack_networking_floatingip_v2.gnodeb_floating_ip]
+  floating_ip     = openstack_networking_floatingip_v2.enodeb_floating_ip.0.address
+  fixed_ip        = openstack_compute_instance_v2.enodeb.0.network.0.fixed_ip_v4
+  instance_id     = openstack_compute_instance_v2.enodeb.0.id
+  depends_on      = [openstack_compute_instance_v2.enodeb, openstack_networking_floatingip_v2.enodeb_floating_ip]
 }
 
 ########################################################################################################
@@ -499,7 +499,7 @@ resource "openstack_compute_instance_v2" "ue" {
   image_name        = "${var.environment.ue_image}"
   key_pair          = openstack_compute_keypair_v2.keypair.name
   availability_zone = var.environment.ue_az
-  security_groups   = [ openstack_networking_secgroup_v2.gnodeb_secgroup.0.name ]
+  security_groups   = [ openstack_networking_secgroup_v2.enodeb_secgroup.0.name ]
 
   # OAM Network
   network {
@@ -546,10 +546,10 @@ resource "local_file" "agw" {
   content  = "${openstack_compute_instance_v2.agw.id} ${openstack_compute_instance_v2.agw.name} ${openstack_compute_instance_v2.agw.access_ip_v4}"
 }
 
-resource "local_file" "gnodeb" {
+resource "local_file" "enodeb" {
   count    = var.create_ran ? 1:0
-  filename = "gnodeb.txt"
-  content  = "${openstack_compute_instance_v2.gnodeb.0.id} ${openstack_compute_instance_v2.gnodeb.0.name} ${openstack_compute_instance_v2.gnodeb.0.access_ip_v4}"
+  filename = "enodeb.txt"
+  content  = "${openstack_compute_instance_v2.enodeb.0.id} ${openstack_compute_instance_v2.enodeb.0.name} ${openstack_compute_instance_v2.enodeb.0.access_ip_v4}"
 }
 
 resource "local_file" "ue" {
@@ -584,10 +584,10 @@ resource "local_file" "agw_s1_ip"{
   filename = "agw_s1_ip.txt"
 }
 
-resource "local_file" "gnodeb_s1_ip"{
+resource "local_file" "enodeb_s1_ip"{
   count     = var.create_ran ? 1:0
-  content   = "${openstack_compute_instance_v2.gnodeb.0.network.1.fixed_ip_v4}"
-  filename  = "gnodeb_s1_ip.txt"
+  content   = "${openstack_compute_instance_v2.enodeb.0.network.1.fixed_ip_v4}"
+  filename  = "enodeb_s1_ip.txt"
 }
 
 resource "local_file" "agw_s1_subnet"{

@@ -44,7 +44,7 @@ echo "${terraform_opts}" > terraform_opts
 echo "${ansible_opts}" > ansible_opts 
 rm *.txt 2>/dev/null
 
-terraform apply ${terraform_opts} --auto-approve
+terraform apply ${terraform_opts} --replace openstack_compute_instance_v2.agw --auto-approve
 
 for f in *.txt; do echo >> $f; done
 sed -i '/^$/d' *.txt

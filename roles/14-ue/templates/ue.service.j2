@@ -2,7 +2,8 @@
 Description=UE Service
 
 [Service]
-ExecStart=/usr/local/bin/ue.sh
+ExecStart=/usr/local/bin/ue.sh start
+ExecStop=/usr/local/bin/ue.sh stop
 
 [Install]
 WantedBy=default.target

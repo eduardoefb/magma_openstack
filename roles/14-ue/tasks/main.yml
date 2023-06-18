@@ -3,6 +3,13 @@
 - include_vars: "{{ playbook_dir }}/vars.yml" 
 - include_vars: "{{ playbook_dir }}/magma_config.yml"  
 
+
+- name: Configure /etc/resolv.conf
+  shell: |
+    ln -sf /var/run/systemd/resolve/resolv.conf /etc/resolv.conf
+    sed -i 's/#DNS=/DNS=8.8.8.8 208.67.222.222/' /etc/systemd/resolved.conf
+    service systemd-resolved restart
+    
 - name: Get first interface
   shell: |
     interfaces=($(ip link | grep --color -oP '(?<=\d:\s)(.*)(?=:\s<)' | grep -v lo))

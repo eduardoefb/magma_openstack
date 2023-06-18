@@ -18,17 +18,17 @@
       shell: |
         echo {{ namespace }} > {{ playbook_dir }}/namespace.txt
 
-- hosts: GNODEB, UE
+- hosts: ENODEB, UE
   user: ubuntu
   become: true
   roles:
     - role: 12-openairinterface
 
-- hosts: GNODEB
+- hosts: ENODEB
   user: ubuntu
   become: true
   roles:
-    - role: 13-gnodeb
+    - role: 13-enodeb
 
 - hosts: UE
   user: ubuntu

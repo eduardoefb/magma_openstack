@@ -1,3 +1,47 @@
 #!/bin/bash
+function start(){
+    gw_interface=`ip route | grep --color -P 'default\svia\s\d+\.' | awk '{print $5}'`
+    iptables -t nat -F
+    iptables -t nat -A POSTROUTING -o ${gw_interface} -j MASQUERADE
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    ip netns add ${NAMESPACE}
+    ip link add ${VET0} type veth peer name ${VET1}
+    ip link set ${VET1} netns ${NAMESPACE}
+    ip -n ${NAMESPACE} addr add ${VET1_ADDR}/${VET_MASK_LEN} dev ${VET1}
+    ip netns exec ${NAMESPACE} ip link set ${VET1} up
+    ip addr add ${VET0_ADDR}/${VET_MASK_LEN} dev ${VET0}
+    ip link set ${VET0} up
+    ip netns exec ${NAMESPACE} ip route add {{ enodeb_int }} via ${VET0_ADDR}
+    
+    sleep 5 && while ! ip netns exec ${NAMESPACE} ip route add default dev oaitun_ue1; do sleep 1; done&
+    
+    cd /opt/subscribers/default && nohup ip netns exec ${NAMESPACE} /root/openairinterface5g/cmake_targets/ran_build/build/lte-uesoftmodem -C 2685000000 -r 50 --rfsim --rfsimulator.serveraddr {{ enodeb_int }}
+        
+}
 
-cd /opt/subscribers/default && /root/openairinterface5g/cmake_targets/ran_build/build/lte-uesoftmodem -C 2685000000 -r 50 --rfsim --rfsimulator.serveraddr {{ gnodeb_int }}
+function stop(){
+    ip netns exec ${NAMESPACE} ip link del ${VET1}
+    ip link del ${VET0}
+    ip netns delete ${NAMESPACE}
+    exit 0
+}
+
+export NAMESPACE="ue"
+export VET0="v-ue0"
+export VET1="v-ue1"
+export VET0_ADDR=10.10.10.1
+export VET1_ADDR=10.10.10.2
+export VET_MASK_LEN=30
+
+if [ -z "${1}" ]; then 
+    echo "Usage: "
+    echo "$0 <start|stop>"
+    exit 1
+fi
+
+if [ "${1}" == "start" ]; then 
+    start
+elif [ "${1}" == "stop" ]; then 
+    stop
+fi
+

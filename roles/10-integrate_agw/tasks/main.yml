@@ -18,6 +18,30 @@
       service magma@* stop
       service magma@magmad restart
 
+  - name: Wait until services are running      
+    shell: |        
+      if [ `/usr/bin/systemctl | grep -P '\s+magma.*\s+loaded\sactive\srunning\s+' | wc -l` -lt 15 ]; then 
+        exit 1
+      fi
+    register: svc
+    retries: 100
+    delay: 10
+    until: svc is success  
+    
+  - name: Reboot
+    reboot:
+      msg: Reboot triggered
+      reboot_timeout: 360
+  - name: Wait until services are running      
+    shell: |        
+      if [ `/usr/bin/systemctl | grep -P '\s+magma.*\s+loaded\sactive\srunning\s+' | wc -l` -lt 15 ]; then 
+        exit 1
+      fi
+    register: svc
+    retries: 100
+    delay: 10
+    until: svc is success  
+
 
 
       

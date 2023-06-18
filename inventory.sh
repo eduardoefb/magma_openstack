@@ -102,11 +102,11 @@ function update_inventory(){
     agw_int=$(awk -F \' '{print $4}' <<< ${addr_line_agw})
     agw_ext=$(awk -F \' '{print $6}' <<< ${addr_line_agw})
 
-    if [ -f gnodeb.txt ]; then
-        gnodeb_id=`cat gnodeb.txt | head -1 | awk '{print $1}'`
-        addr_line_gnodeb=`openstack server show ${gnodeb_id} -f value -c addresses`
-        gnodeb_int=$(awk -F \' '{print $4}' <<< ${addr_line_gnodeb})
-        gnodeb_ext=$(awk -F \' '{print $6}' <<< ${addr_line_gnodeb})   
+    if [ -f enodeb.txt ]; then
+        enodeb_id=`cat enodeb.txt | head -1 | awk '{print $1}'`
+        addr_line_enodeb=`openstack server show ${enodeb_id} -f value -c addresses`
+        enodeb_int=$(awk -F \' '{print $4}' <<< ${addr_line_enodeb})
+        enodeb_ext=$(awk -F \' '{print $6}' <<< ${addr_line_enodeb})   
     fi 
     
     if [ -f ue.txt ]; then
@@ -122,10 +122,10 @@ function update_inventory(){
     echo "[AGW]" >> hosts    
     echo "${agw_ext}" >> hosts
 
-    if [ -f gnodeb.txt ]; then 
+    if [ -f enodeb.txt ]; then 
         echo >> hosts
-        echo "[GNODEB]" >> hosts 
-        echo "${gnodeb_ext}" >> hosts 
+        echo "[ENODEB]" >> hosts 
+        echo "${enodeb_ext}" >> hosts 
     fi
 
     if [ -f ue.txt ]; then     
@@ -139,8 +139,8 @@ function update_inventory(){
     echo "[ALL]" >> hosts 
     echo ${bastian_ext} >> hosts
     echo ${agw_ext} >> hosts
-    if [ -f gnodeb.txt ]; then 
-        echo ${gnodeb_ext} >> hosts
+    if [ -f enodeb.txt ]; then 
+        echo ${enodeb_ext} >> hosts
     fi
 
     if [ -f ue.txt ]; then
@@ -150,8 +150,8 @@ function update_inventory(){
     echo "all:" >> vars.yml    
     echo "  - ${bastian_ext}" >> vars.yml
     echo "  - ${agw_ext}" >> vars.yml
-    if [ -f gnodeb.txt ]; then 
-        echo "  - ${gnodeb_ext}" >> vars.yml
+    if [ -f enodeb.txt ]; then 
+        echo "  - ${enodeb_ext}" >> vars.yml
     fi
     if [ -f ue.txt ]; then 
         echo "  - ${ue_ext}" >> vars.yml
@@ -164,9 +164,9 @@ function update_inventory(){
     echo "  - ${agw_ext}" >> vars.yml
     echo >> vars.yml 
     
-    if [ -f gnodeb.txt ]; then 
-        echo "gnodeb: ${gnodeb_ext}" >> vars.yml    
-        echo "gnodeb_int: ${gnodeb_int}" >> vars.yml      
+    if [ -f enodeb.txt ]; then 
+        echo "enodeb: ${enodeb_ext}" >> vars.yml    
+        echo "enodeb_int: ${enodeb_int}" >> vars.yml      
     fi
 
     if [ -f ue.txt ]; then 
@@ -213,8 +213,8 @@ function update_inventory(){
         echo "agw_s1_ip: `head -1 agw_s1_ip.txt`" >> vars.yml
     fi
 
-    if [ -f gnodeb_s1_ip.txt ]; then 
-        echo "gnodeb_s1_ip: `head -1 gnodeb_s1_ip.txt`" >> vars.yml
+    if [ -f enodeb_s1_ip.txt ]; then 
+        echo "enodeb_s1_ip: `head -1 enodeb_s1_ip.txt`" >> vars.yml
     fi
 
     echo "agw_s1_netmask: `echo $s1_subnet_cidr | awk -F '/' '{print $NF}'`" >> vars.yml

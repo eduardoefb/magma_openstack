@@ -102,14 +102,13 @@ Start the `create.sh` script with the option `build`. It will build the images a
 Deploy:
 ```shell
 bash create.sh build orc8r agw ran
-
 ```
 
 
 #### 3 - Enodeb and UE:
 Once the vms are created, build enodeb/ue separatelly:
 ```shell
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts 05_gnodeb_ue.yml --ask-vault-password
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts 05_enodeb_ue.yml --ask-vault-password
 ```
 
 #### 4 - Post installation:
