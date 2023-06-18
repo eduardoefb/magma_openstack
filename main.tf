@@ -616,7 +616,6 @@ resource "local_file" "agw_s1_subnet"{
   filename  = "agw_s1_subnet.txt"
 }
 
-
 resource "local_file" "s1_subnet_cidr"{
   content   = "${data.openstack_networking_subnet_v2.s1_subnet.cidr}"
   filename  = "s1_subnet_cidr.txt"
