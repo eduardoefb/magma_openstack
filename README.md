@@ -18,6 +18,26 @@ For installation instructions, refer to the [OpenStack Ubuntu Guide](https://git
 Please ensure that you have met all the requirements before proceeding with the Magma deployment.
 
 
+3. **Openstack networks for S1 and Sgi**
+```
+
+openstack network create vlan150 --share --provider-network-type vlan --provider-physical-network clabext01 --provider-segment 150
+openstack subnet create --network vlan150 --dns-nameserver 10.2.1.55 --gateway 172.100.0.1  --subnet-range 172.100.0.0/24 vlan150
+openstack network set --mtu 1450 vlan150
+
+openstack network create vlan151 --share --provider-network-type vlan --provider-physical-network clabext01 --provider-segment 151
+openstack subnet create --network vlan151 --dns-nameserver 10.2.1.55 --subnet-range 172.100.1.0/24 vlan151
+openstack network set --mtu 1450 vlan151
+
+openstack subnet set vlan151 --dhcp --gateway none
+openstack subnet set vlan150 --no-allocation-pool 
+openstack subnet set vlan150 --allocation-pool start=172.100.0.10,end=172.100.0.200
+openstack subnet set vlan151 --no-allocation-pool 
+openstack subnet set vlan151 --allocation-pool start=172.100.1.10,end=172.100.1.200
+
+
+```
+
 ## 1. Prepare Configuration File
 Once the above requirements are satisfied, you need to create the configuration file `magma_config.yml` with passwords and other configurations. Example below:
 

@@ -6,7 +6,8 @@ variable environment {
                      agw_image = string,
                      s1_network = string,
                      s1_subnet = string,
-                     s1_agw_ip = string,
+                     sgi_network = string,
+                     sgi_subnet = string,
                      internal_subnet_cidr = string,
                      external_network = string,
                      internal_subnet_gw = string,
@@ -49,9 +50,10 @@ variable environment {
         ue_az = "zone03",
         ue_image = "ubuntu_18.04",
         ue_flavor = "m1.medium",        
-        s1_network = "clabext01",
-        s1_subnet = "clabext01_ipv4",
-        s1_agw_ip = "10.3.0.155"     
+        s1_network = "vlan151",
+        s1_subnet = "vlan151",
+        sgi_network = "vlan150",
+        sgi_subnet = "vlan150"        
     }
 }
 

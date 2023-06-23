@@ -12,6 +12,13 @@
     template:
       src: hosts.j2
       dest: /etc/hosts
+
+
+  - name: Configure MTU for GTP interface
+    shell: |
+      if ! grep  '    mtu {{ magma.agw.agw_gtp_mtu }}' /etc/network/interfaces.d/gtp; then
+        sed -i '/iface gtp_br0 inet static/a \    mtu {{ magma.agw.agw_gtp_mtu }}' /etc/network/interfaces.d/gtp
+      fi
         
   - name: Restart magma service
     shell: |

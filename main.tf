@@ -329,6 +329,15 @@ data openstack_networking_subnet_v2 oam_subnet {
     name = var.environment.external_subnet
 }
 
+
+data "openstack_networking_network_v2" "sgi_network" {
+  name = var.environment.sgi_network
+}
+
+data openstack_networking_subnet_v2 sgi_subnet {
+    name = var.environment.sgi_subnet
+}
+
 data "openstack_networking_network_v2" "s1_network" {
   name = var.environment.s1_network
 }
@@ -346,9 +355,9 @@ resource "openstack_compute_instance_v2" "agw" {
   availability_zone = var.environment.agw_az
   security_groups = [ openstack_networking_secgroup_v2.agw_secgroup.name ]
 
-  # OAM Network
+  # SGI Network
   network {
-    name = openstack_networking_network_v2.network.name
+    name = data.openstack_networking_network_v2.sgi_network.name
   }
 
   # S1 network
@@ -364,19 +373,14 @@ resource "openstack_compute_instance_v2" "agw" {
   ]
 }
 
-# Create a list of floating IPs
-resource "openstack_networking_floatingip_v2" "agw_floating_ip" {
-  pool  = var.environment.external_network
-  subnet_id = data.openstack_networking_subnet_v2.ext_sub_net.id
-}
 
 # Associate floating IPs with instances
-resource "openstack_compute_floatingip_associate_v2" "agw_floating_ip_associate" {
-  floating_ip     = openstack_networking_floatingip_v2.agw_floating_ip.address
-  fixed_ip        = openstack_compute_instance_v2.agw.network.0.fixed_ip_v4
-  instance_id     = openstack_compute_instance_v2.agw.id
-  depends_on      = [openstack_compute_instance_v2.agw, openstack_networking_floatingip_v2.agw_floating_ip]
-}
+#resource "openstack_compute_floatingip_associate_v2" "agw_floating_ip_associate" {
+#  floating_ip     = openstack_networking_floatingip_v2.agw_floating_ip.address
+#  fixed_ip        = openstack_compute_instance_v2.agw.network.0.fixed_ip_v4
+#  instance_id     = openstack_compute_instance_v2.agw.id
+#  depends_on      = [openstack_compute_instance_v2.agw, openstack_networking_floatingip_v2.agw_floating_ip]
+#}
 
 
 ########################################################################################################
@@ -543,7 +547,7 @@ resource "local_file" "bastian_floating_ip" {
 
 resource "local_file" "agw_floating_ip" {
   filename = "agw_floating_ip.txt"
-  content  = "${openstack_networking_floatingip_v2.agw_floating_ip.address}"
+  content  = "${openstack_compute_instance_v2.agw.access_ip_v4}"
 }
 
 resource "local_file" "enodeb_floating_ip" {
