@@ -71,6 +71,9 @@
 - name: Create namespace
   shell: kubectl create namespace {{ namespace }}
 
+#- name: Enable istio in the namespace
+#  shell: kubectl label namespace {{ namespace }} istio-injection=enabled
+
 - name: Install Elasticsearch
   shell: |
     storageclass=`kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'`
@@ -166,10 +169,14 @@
   shell: helm repo add bitnami https://charts.bitnami.com/bitnami
 
 - name: Install orchestrator db
-  shell: helm -n {{ namespace }} install orc8rdb bitnami/postgresql --set livenessProbe.initialDelaySeconds=300,fullnameOverride=orc8rdb --wait --timeout 3600s
+  shell: |
+    helm repo update
+    helm -n {{ namespace }} install orc8rdb bitnami/postgresql --set livenessProbe.initialDelaySeconds=300,fullnameOverride=orc8rdb --wait --timeout 3600s
   
 - name: Install nms db
-  shell: helm -n {{ namespace }} install nmsdb bitnami/postgresql --set livenessProbe.initialDelaySeconds=300,fullnameOverride=nmsdb  --wait --timeout 3600s
+  shell: |
+    helm repo update
+    helm -n {{ namespace }} install nmsdb bitnami/postgresql --set livenessProbe.initialDelaySeconds=300,fullnameOverride=nmsdb  --wait --timeout 3600s
           
 - name: Clear certificate directory
   file:
@@ -296,6 +303,7 @@
     cd /home/debian/magma/orc8r/cloud/helm/orc8r
     #sed -i "s|'fluentd'}|'eventd'}|g" charts/logging/templates/fluentd-forward.configmap.yaml
     #sed -i "s|'fluentd'}|'eventd'}|g" charts/logging/templates/fluentd-daemon.configmap.yaml
+    #sed -i '/\ \ \ \ \ \ labels:/a\ \ \ \ \ \ \ \ "sidecar.istio.io/inject": "false"' charts/metrics/templates/storeconfig-job.yaml
     for f in `grep -lr -i 'policy/v1beta1'  *`; do sed -i 's|policy/v1beta1|policy/v1|g' $f; done
     sed -i 's/listen 443;/listen 443 ssl;/g; /ssl on;/d' charts/nms/templates/etc/_nginx_proxy_ssl.conf.tpl
     helm dep update

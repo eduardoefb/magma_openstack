@@ -33,7 +33,7 @@
       - python-mako 
       - doxygen 
       - python-docutils 
-      - python-requests 
+      - python3-requests 
       - python3-pip 
       - cmake 
       - build-essential

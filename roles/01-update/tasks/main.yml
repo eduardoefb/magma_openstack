@@ -104,7 +104,7 @@
   - name: Download helm
     become: true
     unarchive:
-      src: https://get.helm.sh/helm-v3.2.1-linux-amd64.tar.gz 
+      src: https://get.helm.sh/helm-v3.12.1-linux-amd64.tar.gz
       dest: /tmp/
       remote_src: yes  
 

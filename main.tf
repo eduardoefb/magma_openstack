@@ -357,12 +357,14 @@ resource "openstack_compute_instance_v2" "agw" {
 
   # SGI Network
   network {
-    name = data.openstack_networking_network_v2.sgi_network.name
+    name         = data.openstack_networking_network_v2.sgi_network.name
+    fixed_ip_v4  = var.environment.agw_sgi_ip
   }
 
   # S1 network
   network {
-    name = data.openstack_networking_network_v2.s1_network.name
+    name         = data.openstack_networking_network_v2.s1_network.name
+    fixed_ip_v4  = var.environment.agw_s1_ip
   }
 
   depends_on = [
@@ -372,15 +374,6 @@ resource "openstack_compute_instance_v2" "agw" {
     openstack_networking_router_interface_v2.router_interface_01    
   ]
 }
-
-
-# Associate floating IPs with instances
-#resource "openstack_compute_floatingip_associate_v2" "agw_floating_ip_associate" {
-#  floating_ip     = openstack_networking_floatingip_v2.agw_floating_ip.address
-#  fixed_ip        = openstack_compute_instance_v2.agw.network.0.fixed_ip_v4
-#  instance_id     = openstack_compute_instance_v2.agw.id
-#  depends_on      = [openstack_compute_instance_v2.agw, openstack_networking_floatingip_v2.agw_floating_ip]
-#}
 
 
 ########################################################################################################

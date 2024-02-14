@@ -3,6 +3,16 @@
   - include_vars: "{{ playbook_dir }}/vars.yml" 
   - include_vars: "{{ playbook_dir }}/magma_config.yml" 
 
+    # https://github.com/magma/magma/issues/15279
+  - name: Workaround for agw
+    shell: |
+      wget https://ftp.debian.org/debian/pool/main/g/gcc-10/liblsan0_10.2.1-6_amd64.deb
+      wget https://ftp.debian.org/debian/pool/main/g/gcc-10/gcc-10-base_10.2.1-6_amd64.deb
+      dpkg -i gcc-10-base_10.2.1-6_amd64.deb liblsan0_10.2.1-6_amd64.deb
+      
+    args:
+      executable: /bin/bash 
+
   - name: Create directory if not present
     file:
       path: "{{ item }}"
